@@ -54,3 +54,9 @@ Existing settings remain in `%APPDATA%\SasamiVLC\config.json` and `library.json`
 The charcoal, gold and orange theme uses RGB values sampled from the supplied CineK artwork. `icon.png` and `src/main/resources/icon.png` supply the interface logo; `icon.ico` contains the Windows icon sizes from 16 to 256 pixels.
 
 Generated files in `.gradle/`, `.kotlin/`, `build/` and `out/` are ignored by Git. The packaged player contains its own Java and VLC runtimes.
+
+## Automated builds
+
+The Windows workflow builds and checks the desktop app, runs the existing Inno Setup script, and uploads `CineK-<version>-Setup.exe` as a workflow artifact. Pushing a tag matching the version in `build.gradle.kts` (for example, `v1.0.0`) also attaches the installer to a GitHub Release. A manual run builds the installer without publishing a release.
+
+The separate Android workflow builds `android/app/build/outputs/apk/debug/app-debug.apk` and uploads it as a workflow artifact. You can run it manually or let it run when the Android project changes on `main`. The APK is a debug build for testing. It is a small native Android prototype that opens a local video or direct HTTPS media URL with Android's built-in player. It does not yet include the Compose Desktop interface, bundled VLC codecs, library, playlists, or live-channel features. Playback support depends on the device's media codecs. To build locally, install Android SDK platform 36 and build tools 36.0.0, then run `./gradlew -p android :app:assembleDebug`.

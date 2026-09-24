@@ -14,6 +14,7 @@ try {
     & .\gradlew.bat check createDistributable
     if ($LASTEXITCODE -ne 0) { throw 'CineK build or checks failed.' }
     $app = Join-Path $repo 'build\compose\binaries\main\app\CineK'
+    Copy-Item -LiteralPath (Join-Path $repo 'icon.ico') -Destination (Join-Path $app 'CineK.ico') -Force
     foreach ($required in @('CineK.exe', 'CineK.ico', 'runtime\bin\server\jvm.dll', 'app\resources\vlc\libvlc.dll', 'app\resources\vlc\libvlccore.dll')) {
         if (-not (Test-Path -LiteralPath (Join-Path $app $required))) { throw "Missing packaged file: $required" }
     }

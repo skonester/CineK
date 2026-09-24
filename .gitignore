@@ -2,5 +2,8 @@
 /.kotlin/
 /build/
 /out/
+/android/.gradle/
+/android/build/
+/android/app/build/
 *.log
 .DS_Store
