@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "CineKAndroidExperimental"
+rootProject.name = "CineKAndroid"
 include(":app")

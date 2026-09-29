@@ -2,15 +2,15 @@
 
 <img src="icon.png" alt="CineK" width="128">
 
-CineK is a Windows media player built with Compose Desktop and libVLC/vlcj. It includes a searchable library, playlists, favorites, playback history, live channels, track selection and fullscreen playback with controls that hide when idle.
+CineK is a Windows media player built with Compose Desktop and libVLC/vlcj, and an Android TV player based on Aperture. The Windows app includes a searchable library, playlists, favorites, playback history, live channels, track selection and fullscreen playback with controls that hide when idle.
 
 ## Interface direction
 
-The desktop interface takes design cues from [Aperture](https://github.com/XDanfr/Aperture), an Android TV player distributed under GPLv3, the same license used by CineK. The current polish pass adapts its layered surface palette, rounded media and action shapes, prominent featured item, Continue Watching shelf, and visible focus treatment for cards and navigation. These are original Compose Desktop implementations; no Aperture source or assets are bundled.
+The desktop interface takes design cues from [Aperture](https://github.com/XDanfr/Aperture), an Android TV player distributed under GPLv3, the same license used by CineK. The desktop polish pass adapts its layered surface palette, rounded media and action shapes, prominent featured item, Continue Watching shelf, and visible focus treatment for cards and navigation. These are original Compose Desktop implementations. The separate Android app now includes adapted Aperture source; see [Android attribution](android/NOTICE.md).
 
 Continue Watching uses CineK's existing resume rule and only shows library items with a useful saved position. The featured item and shelf scroll with the media collection. At the minimum window height, the shelf takes priority over the featured item so the resume cards remain visible.
 
-Reusable colors and shapes live in `src/main/kotlin/com/sasami/vlc/theme/Theme.kt`. The library, queue, and transport controls use those semantic roles so a future Android UI can carry the same visual language while replacing desktop window, Swing, and VLC surface code with Android equivalents. Aperture's `androidx.tv.material3` controls and media engine remain Android-specific and are not desktop dependencies.
+Reusable desktop colors and shapes live in `src/main/kotlin/com/sasami/vlc/theme/Theme.kt`. The Android TV theme uses the same CineK gold and charcoal values. Aperture's `androidx.tv.material3` controls and Media3 engine remain Android-specific and are not desktop dependencies.
 
 ## Live Channels
 
@@ -67,4 +67,4 @@ Generated files in `.gradle/`, `.kotlin/`, `build/` and `out/` are ignored by Gi
 
 The Windows workflow builds and checks the desktop app, runs the existing Inno Setup script, and uploads `CineK-<version>-Setup.exe` as a workflow artifact. It also publishes the installer to a GitHub Release. You can push a tag matching the version in `build.gradle.kts` (for example, `v1.0.1`), or run the workflow manually from `main`; a manual run creates the version tag if needed. Increase the version before publishing a new release.
 
-The separate Android workflow builds `android/app/build/outputs/apk/debug/app-debug.apk` and uploads it as a workflow artifact. You can run it manually or let it run when the Android project changes on `main`. The APK is a debug build for testing. It is a small native Android prototype that opens a local video or direct HTTPS media URL with Android's built-in player. It does not yet include the Compose Desktop interface, bundled VLC codecs, library, playlists, or live-channel features. Playback support depends on the device's media codecs. To build locally, install Android SDK platform 36 and build tools 36.0.0, then run `./gradlew -p android :app:assembleDebug`.
+The separate Android workflow builds `android/app/build/outputs/apk/debug/app-debug.apk` and uploads it as a workflow artifact. The Android app is a full TV focused local media player using Aperture's library scanner, search, Continue Watching, favorites, metadata screens, Media3 playback, track controls and settings, with CineK's artwork and palette. It supports Android API 27 and newer. The Android app uses its own Media3 engine; desktop VLC binaries and desktop live channels are not part of the APK. The workflow APK is debug signed for testing. Android setup and build instructions are in [android/README.md](android/README.md).

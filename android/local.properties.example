@@ -1,0 +1,5 @@
+# Set this to your Android SDK directory (use forward slashes on Windows).
+sdk.dir=C:/Users/you/AppData/Local/Android/Sdk
+# Optional metadata and subtitle API keys.
+TMDB_API_KEY=
+OPENSUBTITLES_API_KEY=
