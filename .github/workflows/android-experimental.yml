@@ -26,7 +26,8 @@ jobs:
       - name: Install Android SDK packages
         run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
       - name: Build experimental debug APK
-        run: ./gradlew -p android :app:assembleDebug --no-daemon
+        # Via bash, so the build does not depend on gradlew keeping its executable bit through Windows commits.
+        run: bash ./gradlew -p android :app:assembleDebug --no-daemon
       - name: Upload APK
         uses: actions/upload-artifact@v6
         with:
