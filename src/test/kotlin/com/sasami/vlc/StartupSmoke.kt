@@ -14,7 +14,7 @@ object StartupSmoke {
     @JvmStatic fun main(args: Array<String>) {
         val output = File("build/startup-smoke").absoluteFile.apply { mkdirs() }
         val config = File(output, "config").apply { mkdirs() }
-        System.setProperty("sasami.configDir", config.path)
+        System.setProperty("cinek.configDir", config.path)
         File(config, "config.json").writeText("""{"lang":"en","player":{"playerList":[]}}""")
         File(config, "library.json").writeText("{}")
         val media = File(output, "Caf\u00e9 \u97f3\u697d #1.WAV")

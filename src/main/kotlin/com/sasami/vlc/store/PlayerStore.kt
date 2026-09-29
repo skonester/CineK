@@ -22,7 +22,9 @@ data class PlayerSection(
     val playerList: List<PlayerItem> = emptyList(),
     val audioOutput: String = "",
     val audioDeviceId: String = "",
-    val videoOutput: String = "auto"
+    // OpenGL by default: VLC's automatic choice (Direct3D 11) turns the window white and hangs it
+    // when the window covers the whole monitor (maximized or fullscreen).
+    val videoOutput: String = "glwin32"
 )
 
 @Serializable
@@ -37,7 +39,7 @@ object PlayerStore {
     var activeId by mutableStateOf("") // Path of currently playing video
     var audioOutput by mutableStateOf("")
     var audioDeviceId by mutableStateOf("")
-    var videoOutput by mutableStateOf("auto")
+    var videoOutput by mutableStateOf(PlayerSection().videoOutput)
     
     // Runtime-only states
     var volume by mutableStateOf(80)
@@ -52,10 +54,7 @@ object PlayerStore {
         ignoreUnknownKeys = true
     }
 
-    private val configFile: File by lazy {
-        val appData = System.getenv("APPDATA") ?: (System.getProperty("user.home") + "/AppData/Roaming")
-        System.getProperty("sasami.configDir")?.let { File(it, "config.json") } ?: File(appData, "SasamiVLC/config.json")
-    }
+    private val configFile: File by lazy { File(AppPaths.configDir, "config.json") }
 
     fun load() {
         try {

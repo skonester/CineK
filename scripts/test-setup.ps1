@@ -1,7 +1,7 @@
 param([string]$SetupPath)
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
-if (-not $SetupPath) { $SetupPath = Join-Path $repo 'out\setup\CineK-1.0.0-Setup.exe' }
+if (-not $SetupPath) { $SetupPath = Join-Path $repo 'out\setup\CineK-1.0.1-Setup.exe' }
 $testRoot = Join-Path $repo 'build\installer-smoke'
 $appDir = Join-Path $testRoot 'Installed CineK'
 $configDir = Join-Path $testRoot 'config'
@@ -71,7 +71,7 @@ try {
     $start.RedirectStandardError = $true
     $start.RedirectStandardOutput = $true
     $start.WindowStyle = [Diagnostics.ProcessWindowStyle]::Hidden
-    $start.EnvironmentVariables['JAVA_TOOL_OPTIONS'] = '-Dsasami.configDir="' + $configDir + '"'
+    $start.EnvironmentVariables['JAVA_TOOL_OPTIONS'] = '-Dcinek.configDir="' + $configDir + '"'
     [IO.File]::WriteAllText((Join-Path $testRoot 'launch-command.txt'), $start.FileName + [Environment]::NewLine + $start.Arguments)
     $launcher = [Diagnostics.Process]::Start($start)
     $errorOutput = $launcher.StandardError.ReadToEndAsync()

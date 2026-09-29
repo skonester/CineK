@@ -100,10 +100,9 @@ fun WindowScope.TitleBar(onClose: () -> Unit) {
                     )
                 }
 
-                DropdownMenu(
+                AppDropdownMenu(
                     expanded = showBackendMenu,
-                    onDismissRequest = { showBackendMenu = false },
-                    modifier = Modifier.background(Theme.SurfaceBar)
+                    onDismissRequest = { showBackendMenu = false }
                 ) {
                     Text("VIDEO BACKEND", modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                         color = Theme.TextMuted, fontSize = 11.sp)

@@ -46,8 +46,7 @@ object LiveChannels {
         private set
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val json = Json { prettyPrint = true; ignoreUnknownKeys = true }
-    private val file get() = File(System.getProperty("sasami.configDir")
-        ?: File(System.getenv("APPDATA") ?: System.getProperty("user.home"), "SasamiVLC").path, "live-channels.json")
+    private val file get() = File(AppPaths.configDir, "live-channels.json")
 
     fun load() {
         try {

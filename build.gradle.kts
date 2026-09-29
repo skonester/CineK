@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "com.sasami.vlc"
-version = "1.0.0"
+version = "1.0.1"
 
 repositories {
     mavenCentral()
@@ -34,7 +34,7 @@ compose.desktop {
             }
             targetFormats(org.jetbrains.compose.desktop.application.dsl.TargetFormat.Msi)
             packageName = "CineK"
-            packageVersion = "1.0.0"
+            packageVersion = "1.0.1"
             // Map resources so that extra native files (vlc DLLs) are bundled
             appResourcesRootDir.set(project.layout.projectDirectory.dir("resources"))
             // Declare JVM modules required by Compose, JNA/vlcj, and coroutines

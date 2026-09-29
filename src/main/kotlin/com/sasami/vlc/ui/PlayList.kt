@@ -1,6 +1,10 @@
 package com.sasami.vlc.ui
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.*
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -22,7 +26,7 @@ import com.sasami.vlc.theme.Theme
 @Composable
 fun PlayList() {
     val queue = DesktopPlayback.queue.mapNotNull { path -> (DesktopPlayback.transientItems + PlayerStore.playerList).find { it.path == path } }
-    Column(Modifier.width(272.dp).fillMaxHeight().background(Theme.SurfaceBar).padding(14.dp)) {
+    Column(Modifier.width(272.dp).fillMaxHeight().background(Theme.SurfaceLow).padding(14.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("Up next", color = Theme.TextPrimary, fontSize = 21.sp)
@@ -35,8 +39,21 @@ fun PlayList() {
         LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             itemsIndexed(queue, key = { _, item -> item.path }) { index, item ->
                 val active = item.path == PlayerStore.activeId
-                Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(if (active) Theme.AccentSoft else Theme.Surface)
-                    .clickable { DesktopPlayback.play(item, persist = item !in DesktopPlayback.transientItems) }.padding(10.dp)) {
+                val interaction = remember { MutableInteractionSource() }
+                val focused = interaction.collectIsFocusedAsState().value
+                val hovered = interaction.collectIsHoveredAsState().value
+                val cardColor = animateColorAsState(when {
+                    focused -> Theme.SurfaceFocused
+                    active -> Theme.AccentSoft
+                    hovered -> Theme.SurfaceHigh
+                    else -> Theme.Surface
+                })
+                Column(Modifier.fillMaxWidth().clip(Theme.CardShape).background(cardColor.value)
+                    .border(1.dp, if (focused || active) Theme.Accent else Theme.Border, Theme.CardShape)
+                    .hoverable(interaction)
+                    .clickable(interactionSource = interaction, indication = null) {
+                        DesktopPlayback.play(item, persist = item !in DesktopPlayback.transientItems)
+                    }.padding(10.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(if (active) "▶" else "${index + 1}", color = Theme.Accent, fontSize = 12.sp, modifier = Modifier.width(24.dp))
                         Text(item.name, color = Theme.TextPrimary, maxLines = 2, overflow = TextOverflow.Ellipsis, fontSize = 12.sp,

@@ -15,7 +15,7 @@ object DesktopSmoke {
     @JvmStatic fun main(args: Array<String>) {
         val output = File("build/desktop-smoke").absoluteFile.apply { mkdirs() }
         val config = File(output, "config").apply { mkdirs() }
-        System.setProperty("sasami.configDir", config.path)
+        System.setProperty("cinek.configDir", config.path)
         val backend = VideoBackend.fromKey(System.getenv("CINEK_SMOKE_BACKEND").orEmpty())
         File(config, "config.json").writeText("""{"lang":"en","player":{"playerList":[],"videoOutput":"${backend.key}"}}""")
         File(config, "library.json").writeText("{}")
@@ -43,6 +43,20 @@ object DesktopSmoke {
                 Thread.sleep(1500)
                 fun capture(name: String) {
                     ImageIO.write(Robot().createScreenCapture(Rectangle(frame.locationOnScreen, frame.size)), "png", File(output, name))
+                }
+                fun captureDarkDialog(name: String) {
+                    val dialogWindow = Window.getWindows().firstOrNull { it is Dialog && it.isShowing }
+                        ?: error("Dialog did not open: $name")
+                    val screenshot = Robot().createScreenCapture(Rectangle(dialogWindow.locationOnScreen, dialogWindow.size))
+                    ImageIO.write(screenshot, "png", File(output, name))
+                    listOf(Point(screenshot.width / 2, screenshot.height - 18),
+                        Point(screenshot.width - 18, screenshot.height / 2)).forEach { point ->
+                        val pixel = Color(screenshot.getRGB(point.x, point.y))
+                        check(maxOf(pixel.red, pixel.green, pixel.blue) < 90) {
+                            "Light dialog window background in $name at $point: $pixel"
+                        }
+                    }
+                    println("PASS: dark dialog background in $name")
                 }
                 capture("library-empty.png")
                 ui { DesktopPlayback.importFiles(listOf(wav)) }
@@ -77,8 +91,7 @@ object DesktopSmoke {
                 capture("player.png")
                 ui { LibraryStore.dialog = "tracks" }
                 Thread.sleep(800)
-                val dialog = Window.getWindows().firstOrNull { it is Dialog && it.isShowing }
-                if (dialog != null) ImageIO.write(Robot().createScreenCapture(Rectangle(dialog.locationOnScreen, dialog.size)), "png", File(output, "tracks.png"))
+                captureDarkDialog("tracks.png")
                 ui { LibraryStore.dialog = null; VlcPlayer.pause() }
                 waitFor("Pause") { !PlayerStore.isPlaying }
                 ui { DesktopPlayback.checkpoint() }
@@ -205,6 +218,8 @@ object DesktopSmoke {
                 }
                 waitFor("Keyboard input restores controls") { com.sasami.vlc.ui.PlayerChrome.visible }
                 ui { LibraryStore.dialog = "playback" }
+                Thread.sleep(500)
+                captureDarkDialog("playback-controls.png")
                 Thread.sleep(com.sasami.vlc.ui.PlayerChrome.IDLE_MILLIS + 400)
                 check(com.sasami.vlc.ui.PlayerChrome.visible) { "Controls hid with settings open" }
                 println("PASS: open settings prevent hiding")

@@ -1,6 +1,7 @@
 package com.sasami.vlc.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.*
@@ -37,20 +38,24 @@ fun WindowScope.PlayerBar() {
         PlayerChrome.toolbarBounds = java.awt.Rectangle(
             (bounds.left / transform.scaleX).roundToInt(), (bounds.top / transform.scaleY).roundToInt(),
             (bounds.width / transform.scaleX).roundToInt(), (bounds.height / transform.scaleY).roundToInt())
-    }.background(Theme.SurfaceBar).padding(horizontal = 22.dp, vertical = 6.dp)) {
+    }.background(Theme.SurfaceLow).border(width = 1.dp, color = Theme.Border)
+        .padding(horizontal = 22.dp, vertical = 8.dp)) {
         if (active) {
             TimelineSeekBar()
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(formatTime(PlayerStore.currentTime), color = Theme.TextSecondary, fontSize = 10.sp)
-                Text(formatTime(PlayerStore.duration), color = Theme.TextMuted, fontSize = 10.sp)
+                Text(formatTime(PlayerStore.currentTime), color = Theme.TextSecondary, fontSize = 11.sp)
+                Text(formatTime(PlayerStore.duration), color = Theme.TextSecondary, fontSize = 11.sp)
             }
         }
         BoxWithConstraints(Modifier.fillMaxWidth()) {
             val wide = maxWidth > 1050.dp
             Row(Modifier.fillMaxWidth().height(64.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f).padding(end = 12.dp)) {
+                    Text(if (active) "NOW PLAYING" else "CINEK PLAYER", color = Theme.Accent,
+                        fontSize = 9.sp, letterSpacing = 1.2.sp)
+                    Spacer(Modifier.height(3.dp))
                     Text((DesktopPlayback.transientItems + PlayerStore.playerList).find { it.path == PlayerStore.activeId }?.name ?: "No media loaded",
-                        color = Theme.TextPrimary, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        color = Theme.TextPrimary, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(if (active) if (PlayerStore.isPlaying) "Playing" else "Paused" else "Open a file or select a library item",
                         color = Theme.TextMuted, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
@@ -58,7 +63,7 @@ fun WindowScope.PlayerBar() {
                 ActionIcon(Icons.Default.SkipPrevious, "Previous", enabled = active) { DesktopPlayback.previous() }
                 ActionIcon(Icons.Default.Replay10, "Back 10 seconds · Left", enabled = active) { DesktopPlayback.skip(-10000) }
                 Button(onClick = { DesktopPlayback.toggle() }, enabled = active || PlayerStore.playerList.isNotEmpty(),
-                    shape = RoundedCornerShape(19.dp), modifier = Modifier.size(56.dp, 46.dp), contentPadding = PaddingValues(0.dp)) {
+                    shape = Theme.ControlShape, modifier = Modifier.size(58.dp, 48.dp), contentPadding = PaddingValues(0.dp)) {
                     Icon(if (PlayerStore.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                         if (PlayerStore.isPlaying) "Pause · Space" else "Play · Space", Modifier.size(28.dp))
                 }

@@ -44,11 +44,7 @@ object LibraryStore {
     var speed by mutableStateOf(1f)
     var aspect by mutableStateOf("Original")
     private val json = Json { prettyPrint = true; ignoreUnknownKeys = true }
-    private val file: File get() = File(
-        System.getProperty("sasami.configDir")
-            ?: File(System.getenv("APPDATA") ?: System.getProperty("user.home"), "SasamiVLC").path,
-        "library.json"
-    )
+    private val file: File get() = File(AppPaths.configDir, "library.json")
 
     fun load() {
         try {

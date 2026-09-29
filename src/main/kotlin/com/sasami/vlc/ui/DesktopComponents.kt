@@ -1,12 +1,18 @@
 package com.sasami.vlc.ui
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.*
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -16,15 +22,25 @@ import com.sasami.vlc.theme.Theme
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ActionIcon(icon: ImageVector, label: String, active: Boolean = false, enabled: Boolean = true, onClick: () -> Unit) {
+    val interaction = androidx.compose.runtime.remember { MutableInteractionSource() }
+    val focused = interaction.collectIsFocusedAsState().value
+    val hovered = interaction.collectIsHoveredAsState().value
+    val background = animateColorAsState(when {
+        focused -> Theme.SurfaceFocused
+        hovered && enabled -> Theme.SurfaceHigh
+        active -> Theme.AccentSoft
+        else -> Color.Transparent
+    })
     TooltipArea(tooltip = {
         Surface(color = Theme.Surface, shape = RoundedCornerShape(8.dp), elevation = 8.dp) {
             Text(label, Modifier.padding(10.dp), color = Theme.TextPrimary, fontSize = 12.sp)
         }
     }) {
-        IconButton(onClick, enabled = enabled, modifier = Modifier.size(36.dp)) {
+        IconButton(onClick, enabled = enabled, interactionSource = interaction,
+            modifier = Modifier.size(38.dp).background(background.value, Theme.ControlShape)) {
             Icon(icon, label, Modifier.size(20.dp), tint = when {
                 !enabled -> Theme.TextMuted
-                active -> Theme.Accent
+                active || focused -> Theme.Accent
                 else -> Theme.TextSecondary
             })
         }
@@ -32,11 +48,32 @@ fun ActionIcon(icon: ImageVector, label: String, active: Boolean = false, enable
 }
 
 @Composable
+fun AppDropdownMenu(expanded: Boolean, onDismissRequest: () -> Unit,
+    content: @Composable ColumnScope.() -> Unit) {
+    MaterialTheme(colors = MaterialTheme.colors.copy(surface = Theme.SurfaceLow, onSurface = Theme.TextPrimary),
+        typography = MaterialTheme.typography, shapes = MaterialTheme.shapes) {
+        DropdownMenu(expanded = expanded, onDismissRequest = onDismissRequest,
+            modifier = Modifier.background(Theme.SurfaceLow), content = content)
+    }
+}
+
+@Composable
 fun Pill(text: String, selected: Boolean = false, onClick: (() -> Unit)? = null) {
-    Surface(color = if (selected) Theme.AccentSoft else Theme.Surface, shape = RoundedCornerShape(12.dp),
-        modifier = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier) {
+    val interaction = remember { MutableInteractionSource() }
+    val focused = interaction.collectIsFocusedAsState().value
+    val hovered = interaction.collectIsHoveredAsState().value
+    val color = animateColorAsState(when {
+        focused -> Theme.SurfaceFocused
+        selected -> Theme.AccentSoft
+        hovered && onClick != null -> Theme.SurfaceHigh
+        else -> Theme.Surface
+    })
+    Surface(color = color.value, shape = Theme.ControlShape,
+        border = BorderStroke(1.dp, if (focused) Theme.Accent else Color.Transparent),
+        modifier = if (onClick != null) Modifier.hoverable(interaction)
+            .clickable(interactionSource = interaction, indication = null, onClick = onClick) else Modifier) {
         Text(text, Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
-            color = if (selected) Theme.Accent else Theme.TextSecondary, fontSize = 12.sp)
+            color = if (selected || focused) Theme.Accent else Theme.TextSecondary, fontSize = 12.sp)
     }
 }
 

@@ -86,7 +86,7 @@ fun LiveChannelsPage() {
                 SectionLabel("FREE CHANNEL SOURCES")
                 Box {
                     OutlinedButton(onClick = { featuredMenu = true }, modifier = Modifier.fillMaxWidth()) { Text("Choose service / region", fontSize = 11.sp) }
-                    DropdownMenu(featuredMenu, { featuredMenu = false }) {
+                    AppDropdownMenu(featuredMenu, { featuredMenu = false }) {
                         LiveChannels.featured.forEach { featured ->
                             DropdownMenuItem(onClick = {
                                 featuredMenu = false
@@ -140,6 +140,7 @@ fun LiveChannelsPage() {
         }
     }
     if (addOpen) AlertDialog(onDismissRequest = { addOpen = false }, title = { Text("Add M3U playlist") },
+        backgroundColor = Theme.SurfaceLow, contentColor = Theme.TextPrimary,
         text = { Column {
             OutlinedTextField(sourceName, { sourceName = it }, label = { Text("Name") }, singleLine = true)
             OutlinedTextField(sourceUrl, { sourceUrl = it }, label = { Text("Playlist URL") }, singleLine = true)

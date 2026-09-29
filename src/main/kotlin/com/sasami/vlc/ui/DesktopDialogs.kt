@@ -22,11 +22,11 @@ import kotlinx.coroutines.delay
 fun DesktopDialogs() {
     val dialog = LibraryStore.dialog ?: return
     DialogWindow(state = rememberDialogState(width = 640.dp, height = if (dialog in listOf("stream", "newPlaylist", "clearHistory") || dialog.startsWith("deletePlaylist:")) 340.dp else 680.dp), onCloseRequest = { LibraryStore.dialog = null }, icon = androidx.compose.ui.res.painterResource("icon.png"), title = "CineK · ${dialog.substringBefore(':')}",
-        resizable = false, undecorated = true) {
+        resizable = false, undecorated = true, transparent = true) {
         MaterialTheme(colors = darkColors(primary = Theme.Accent, secondary = Theme.Accent, surface = Theme.SurfaceBar, background = Theme.Bg,
             onPrimary = Theme.Bg, onSurface = Theme.TextPrimary), typography = Theme.typography) {
-            Surface(color = Theme.Bg, shape = RoundedCornerShape(24.dp)) {
-                Column(Modifier.width(620.dp).heightIn(max = 660.dp).padding(26.dp).verticalScroll(rememberScrollState())) {
+            Surface(modifier = Modifier.fillMaxSize(), color = Theme.Bg, shape = RoundedCornerShape(24.dp)) {
+                Column(Modifier.fillMaxSize().padding(26.dp).verticalScroll(rememberScrollState())) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text(when {
                             dialog == "stream" -> "Open a stream"
@@ -233,7 +233,7 @@ private fun AppSettings() {
     SectionLabel("ABOUT")
     Image(androidx.compose.ui.res.painterResource("icon.png"), "CineK", Modifier.size(64.dp))
     Text("CineK", color = Theme.Accent, fontSize = 20.sp)
-    Text("Version 1.0.0", color = Theme.TextSecondary, fontSize = 12.sp)
+    Text("Version 1.0.1", color = Theme.TextSecondary, fontSize = 12.sp)
 }
 
 @Composable

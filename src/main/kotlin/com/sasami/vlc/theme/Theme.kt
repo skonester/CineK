@@ -5,6 +5,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.sp
 
 object Theme {
@@ -12,6 +14,10 @@ object Theme {
     val Bg = Color(0xFF1B1B1C)
     val Surface = Color(0xFF333336)
     val SurfaceBar = Color(0xFF221F1E)
+    // Semantic surfaces keep the desktop Compose UI easy to carry to Android.
+    val SurfaceLow = Color(0xFF272524)
+    val SurfaceHigh = Color(0xFF3D3935)
+    val SurfaceFocused = Color(0xFF50402A)
     val Dark = Color(0xFF000000)
     val Accent = Color(0xFFFCBF1D)
     val AccentHover = Color(0xFFFC980D)
@@ -24,6 +30,10 @@ object Theme {
     val Border = Color(0x14FFFFFF)
     val FillHover = Color(0x1AFFFFFF)
     val Danger = Color(0xFFF95602)
+
+    val CardShape = RoundedCornerShape(22.dp)
+    val HeroShape = RoundedCornerShape(28.dp)
+    val ControlShape = RoundedCornerShape(50)
 
 
     val typography = Typography(

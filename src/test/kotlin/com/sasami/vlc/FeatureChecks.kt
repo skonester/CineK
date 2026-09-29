@@ -22,7 +22,7 @@ object FeatureChecks {
         val old = Json.decodeFromString<AppConfig>("""{"lang":"zh-CN","player":{"playerList":[{"name":"Movie","path":"C:/movie.mp4","type":"video","size":12}],"audioOutput":"mmdevice","audioDeviceId":"test"}}""")
         check(old.player.playerList.single().name == "Movie")
         check(old.player.audioDeviceId == "test")
-        check(old.player.videoOutput == "auto")
+        check(old.player.videoOutput == VideoBackend.OPENGL.key)
         check(VideoBackend.fromKey("glwin32") == VideoBackend.OPENGL)
         check(VideoBackend.fromKey("vulkan") == VideoBackend.AUTOMATIC)
 
@@ -48,7 +48,7 @@ https://example.test/live/one.m3u8
         check(live[1].url == "https://example.test/relative/two.m3u8")
         check(runCatching { M3uChannels.parse("<html>bad</html>", "source", "https://example.test/list") }.isFailure)
 
-        System.setProperty("sasami.configDir", base.path)
+        System.setProperty("cinek.configDir", base.path)
         LibraryStore.favorites = setOf("a", "b")
         LibraryStore.history = listOf(WatchEntry("a", 20000, 80000, 1))
         LibraryStore.playlists = listOf(SavedPlaylist("p", "Weekend", listOf("a")))
@@ -69,11 +69,11 @@ https://example.test/live/one.m3u8
         check("a" !in LibraryStore.favorites)
         check(LibraryStore.history.isEmpty())
         check(LibraryStore.playlists.single().paths == listOf("b"))
-        PlayerStore.videoOutput = VideoBackend.OPENGL.key
+        PlayerStore.videoOutput = VideoBackend.DIRECT3D9.key
         PlayerStore.save()
         PlayerStore.videoOutput = "auto"
         PlayerStore.load()
-        check(PlayerStore.videoOutput == VideoBackend.OPENGL.key)
+        check(PlayerStore.videoOutput == VideoBackend.DIRECT3D9.key)
         println("PASS: queue/repeat boundaries, resume boundaries, legacy config, M3U round trip, library persistence and removal")
     }
 }
