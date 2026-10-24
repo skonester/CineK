@@ -7,6 +7,7 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performTouchInput
 import androidx.test.core.app.ApplicationProvider
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -159,6 +160,14 @@ class LiveTvTest {
         assertNotNull(first.state.value.error)
         assertNull(first.add("Bad", "not a url"))
 
+        // Saving runs in the background, so wait for it to reach the file before
+        // "restarting"; reading straight away raced the save on slower CI runners.
+        val saved = File(app.filesDir, "live-channels.json")
+        runBlocking {
+            withTimeout(5_000) {
+                while (runCatching { saved.readText() }.getOrDefault("").contains("Imported").not()) delay(20)
+            }
+        }
         val restarted = loadedRepository()
         assertEquals(listOf("Pluto TV · US", "Imported"), restarted.state.value.sources.map { it.name })
         assertEquals(2, restarted.state.value.channels.size)
