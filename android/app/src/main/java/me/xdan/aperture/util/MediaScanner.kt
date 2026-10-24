@@ -4,7 +4,10 @@ import android.os.Environment
 import java.io.File
 
 object MediaScanner {
-    private val VIDEO_EXTENSIONS = setOf("mp4", "mkv", "avi", "mov", "wmv", "flv", "webm")
+    private val VIDEO_EXTENSIONS = setOf(
+        "mp4", "m4v", "mkv", "avi", "mov", "wmv", "flv", "f4v", "webm", "ts", "m2ts", "mts",
+        "3gp", "3g2", "mpg", "mpeg", "ogv", "vob", "divx", "asf"
+    )
 
     fun scanDirectories(): List<File> {
         val root = Environment.getExternalStorageDirectory()

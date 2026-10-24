@@ -49,6 +49,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.tv.material3.*
+import me.xdan.aperture.ui.component.touch.Surface
+import me.xdan.aperture.ui.component.touch.Button
+import me.xdan.aperture.ui.component.touch.OutlinedButton
+import me.xdan.aperture.ui.component.touch.IconButton
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import kotlinx.coroutines.delay

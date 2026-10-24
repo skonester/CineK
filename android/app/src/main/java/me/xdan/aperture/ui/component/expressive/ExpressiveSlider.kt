@@ -30,6 +30,7 @@ import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import me.xdan.aperture.ui.component.touch.touchSeek
 import me.xdan.aperture.ui.theme.ApertureTheme
 import kotlin.math.PI
 import kotlin.math.roundToInt
@@ -82,6 +83,17 @@ fun ExpressiveSlider(
             .graphicsLayer {
                 scaleX = animatedScale
                 scaleY = animatedScale
+            }
+            .touchSeek(enabled = enabled) { fraction ->
+                val span = valueRange.endInclusive - valueRange.start
+                val touched = valueRange.start + fraction * span
+                val snapped = if (steps > 0) {
+                    val stepSize = span / (steps + 1)
+                    valueRange.start + ((touched - valueRange.start) / stepSize).roundToInt() * stepSize
+                } else {
+                    touched
+                }
+                onValueChange(snapped.coerceIn(valueRange))
             }
             .onKeyEvent { event ->
                 if (!isFocused || !enabled) return@onKeyEvent false

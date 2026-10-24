@@ -23,9 +23,9 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.tv.material3.Button
+import me.xdan.aperture.ui.component.touch.Button
 import androidx.tv.material3.MaterialTheme
-import androidx.tv.material3.Surface
+import me.xdan.aperture.ui.component.touch.Surface
 import androidx.tv.material3.SurfaceDefaults
 import androidx.tv.material3.Text
 import kotlinx.coroutines.delay

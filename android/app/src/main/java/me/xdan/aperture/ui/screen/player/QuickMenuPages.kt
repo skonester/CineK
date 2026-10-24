@@ -60,6 +60,8 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -67,13 +69,13 @@ import androidx.media3.common.C
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
 import androidx.media3.ui.AspectRatioFrameLayout
-import androidx.tv.material3.Button
+import me.xdan.aperture.ui.component.touch.Button
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
-import androidx.tv.material3.OutlinedButton
-import androidx.tv.material3.Surface
+import me.xdan.aperture.ui.component.touch.OutlinedButton
+import me.xdan.aperture.ui.component.touch.Surface
 import androidx.tv.material3.SurfaceDefaults
 import androidx.tv.material3.Text
 import java.util.Locale
@@ -150,6 +152,8 @@ fun QuickMenuPages(
             .fillMaxWidth()
             .fillMaxHeight(0.62f)
             .padding(horizontal = 32.dp, vertical = 20.dp)
+            // Keep taps on the panel from reaching the player, where a tap closes the menu.
+            .pointerInput(Unit) { detectTapGestures { } }
             .onPreviewKeyEvent { event ->
                 if (
                     page == QuickMenuPage.Categories &&

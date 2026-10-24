@@ -14,11 +14,15 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.tv.material3.*
+import me.xdan.aperture.ui.component.touch.Surface
+import me.xdan.aperture.ui.component.touch.Button
 import kotlinx.coroutines.delay
 import me.xdan.aperture.ui.screen.actions.MediaActionState
 
@@ -52,6 +56,8 @@ fun MediaContextMenu(
                     if (event.type == KeyEventType.KeyUp) waitingForOpeningKeyRelease = false
                     true
                 }
+                // Touch: tapping the scrim closes the menu; taps on the menu itself stay there.
+                .pointerInput(Unit) { detectTapGestures(onTap = { onDismiss() }) }
                 .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.58f)),
             contentAlignment = if (opensToRight) Alignment.CenterEnd else Alignment.CenterStart
         ) {
@@ -59,7 +65,7 @@ fun MediaContextMenu(
                 modifier = Modifier.width(390.dp).padding(
                     start = if (opensToRight) 0.dp else 42.dp,
                     end = if (opensToRight) 42.dp else 0.dp
-                ),
+                ).pointerInput(Unit) { detectTapGestures { } },
                 shape = if (opensToRight) {
                     androidx.compose.foundation.shape.RoundedCornerShape(28.dp, 4.dp, 28.dp, 28.dp)
                 } else {

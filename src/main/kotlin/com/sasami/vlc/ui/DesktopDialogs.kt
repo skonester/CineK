@@ -2,7 +2,6 @@ package com.sasami.vlc.ui
 
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -23,9 +22,9 @@ fun DesktopDialogs() {
     val dialog = LibraryStore.dialog ?: return
     DialogWindow(state = rememberDialogState(width = 640.dp, height = if (dialog in listOf("stream", "newPlaylist", "clearHistory") || dialog.startsWith("deletePlaylist:")) 340.dp else 680.dp), onCloseRequest = { LibraryStore.dialog = null }, icon = androidx.compose.ui.res.painterResource("icon.png"), title = "CineK · ${dialog.substringBefore(':')}",
         resizable = false, undecorated = true, transparent = true) {
-        MaterialTheme(colors = darkColors(primary = Theme.Accent, secondary = Theme.Accent, surface = Theme.SurfaceBar, background = Theme.Bg,
-            onPrimary = Theme.Bg, onSurface = Theme.TextPrimary), typography = Theme.typography) {
-            Surface(modifier = Modifier.fillMaxSize(), color = Theme.Bg, shape = RoundedCornerShape(24.dp)) {
+        MaterialTheme(colors = Theme.colors, typography = Theme.typography, shapes = Theme.shapes) {
+            Surface(modifier = Modifier.fillMaxSize(), color = Theme.SurfaceBar, contentColor = Theme.TextPrimary,
+                shape = Theme.DialogShape, border = BorderStroke(1.dp, Theme.GlassBorder)) {
                 Column(Modifier.fillMaxSize().padding(26.dp).verticalScroll(rememberScrollState())) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text(when {
@@ -80,7 +79,7 @@ private fun StreamDialog() {
     Button({
         error = DesktopPlayback.stream(address)
         if (error == null) LibraryStore.dialog = null
-    }, enabled = address.isNotBlank(), shape = RoundedCornerShape(14.dp)) { Icon(Icons.Default.PlayArrow, null); Text("Play stream") }
+    }, enabled = address.isNotBlank(), shape = Theme.ControlShape) { Icon(Icons.Default.PlayArrow, null); Text("Play stream") }
 }
 
 @Composable
@@ -91,7 +90,7 @@ private fun NewPlaylistDialog() {
     Button({
         LibraryStore.selectedPlaylist = LibraryStore.createPlaylist(name)
         LibraryStore.page = "Playlists"; LibraryStore.dialog = null
-    }, enabled = name.isNotBlank(), shape = RoundedCornerShape(14.dp)) { Text("Create playlist") }
+    }, enabled = name.isNotBlank(), shape = Theme.ControlShape) { Text("Create playlist") }
 }
 
 @Composable
@@ -124,7 +123,7 @@ private fun TrackSettings() {
         }
     }
     OutlinedButton({ DesktopPlayback.subtitles(); refresh++ }, enabled = PlayerStore.activeId.isNotBlank(),
-        shape = RoundedCornerShape(12.dp)) { Icon(Icons.Default.Add, null); Text("Load subtitle file") }
+        shape = Theme.ControlShape) { Icon(Icons.Default.Add, null); Text("Load subtitle file") }
     SectionLabel("SYNCHRONIZATION")
     DelayControl("Audio delay", player?.audio()?.delay() ?: 0) { player?.audio()?.setDelay(it); refresh++ }
     DelayControl("Subtitle delay", player?.subpictures()?.delay() ?: 0) { player?.subpictures()?.setDelay(it); refresh++ }
@@ -233,7 +232,7 @@ private fun AppSettings() {
     SectionLabel("ABOUT")
     Image(androidx.compose.ui.res.painterResource("icon.png"), "CineK", Modifier.size(64.dp))
     Text("CineK", color = Theme.Accent, fontSize = 20.sp)
-    Text("Version 1.0.1", color = Theme.TextSecondary, fontSize = 12.sp)
+    Text("Version 1.0.2", color = Theme.TextSecondary, fontSize = 12.sp)
 }
 
 @Composable

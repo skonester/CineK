@@ -23,6 +23,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.tv.material3.*
+import me.xdan.aperture.ui.component.touch.Surface
+import me.xdan.aperture.ui.component.touch.Button
+import me.xdan.aperture.ui.component.touch.OutlinedButton
 import kotlinx.coroutines.delay
 import me.xdan.aperture.ui.navigation.Destination
 

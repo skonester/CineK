@@ -48,6 +48,7 @@ fun WindowScope.TitleBar(onClose: () -> Unit) {
             .fillMaxWidth()
             .height(42.dp)
             .background(Theme.SurfaceBar)
+            .hairline(Edge.Bottom)
             .pointerInput(Unit) {
                 if (jFrame != null) {
                     awaitEachGesture {

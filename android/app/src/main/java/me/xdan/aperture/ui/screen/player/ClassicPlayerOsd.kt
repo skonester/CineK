@@ -44,10 +44,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.Icon
-import androidx.tv.material3.IconButton
+import me.xdan.aperture.ui.component.touch.IconButton
 import androidx.tv.material3.IconButtonDefaults
 import androidx.tv.material3.MaterialTheme
-import androidx.tv.material3.Surface
+import me.xdan.aperture.ui.component.touch.Surface
 import androidx.tv.material3.SurfaceDefaults
 import androidx.tv.material3.Text
 import kotlinx.coroutines.currentCoroutineContext
@@ -56,6 +56,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import me.xdan.aperture.data.local.entity.MediaEntity
 import me.xdan.aperture.ui.component.expressive.ExpressiveLoadingIndicator
+import me.xdan.aperture.ui.component.touch.touchSeek
 
 @OptIn(ExperimentalTvMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -420,6 +421,12 @@ private fun ClassicPlayerSeekProgress(
 
     BoxWithConstraints(
         modifier = modifier
+            .touchSeek(
+                onSeekStart = { endHold(); beginScrubbing() },
+                onSeekEnd = ::commitScrubbing
+            ) { fraction ->
+                seekPosition = (fraction * duration).toLong()
+            }
             .focusRequester(scrubFocusRequester)
             .layout { measurable, constraints ->
                 val relaxedConstraints = constraints.copy(

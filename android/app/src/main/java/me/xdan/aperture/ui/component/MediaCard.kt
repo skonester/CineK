@@ -36,6 +36,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import me.xdan.aperture.data.local.entity.MediaEntity
 import me.xdan.aperture.data.remote.api.TmdbApi
+import me.xdan.aperture.ui.component.touch.touchClickable
 import me.xdan.aperture.ui.theme.ApertureTheme
 
 @Composable
@@ -95,6 +96,13 @@ fun MediaCard(
             ),
             modifier = Modifier
                 .fillMaxSize()
+                // Remote long-press is handled by the key listener below; touch gets its own.
+                .touchClickable(
+                    interactionSource = interactionSource,
+                    onLongClick = onLongClick?.let { longClick ->
+                        { longClick(cardFocusRequester, opensToRight[0]) }
+                    }
+                ) { onClick(cardFocusRequester) }
                 .onPreviewKeyEvent { event ->
                     if (onLongClick == null) return@onPreviewKeyEvent false
                     val isSelect = event.key == Key.DirectionCenter || event.key == Key.Enter

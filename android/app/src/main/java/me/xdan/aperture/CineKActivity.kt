@@ -1,6 +1,8 @@
 package me.xdan.aperture
 
+import android.content.Intent
 import android.os.Bundle
+import android.view.MotionEvent
 import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -40,7 +42,9 @@ import kotlinx.coroutines.delay
 import me.xdan.aperture.ui.MainViewModel
 import me.xdan.aperture.ui.navigation.Destination
 import me.xdan.aperture.ui.navigation.NavGraph
+import me.xdan.aperture.ui.navigation.isPlayback
 import me.xdan.aperture.ui.screen.ambient.AmbientMode
+import me.xdan.aperture.ui.screen.open.displayName
 import me.xdan.aperture.ui.theme.ApertureTheme
 
 @AndroidEntryPoint
@@ -49,9 +53,15 @@ class MainActivity : ComponentActivity() {
     private var isAmbientActive by mutableStateOf(false)
     private var isPlayerActive by mutableStateOf(false)
     private val ambientDismissKeys = mutableSetOf<Int>()
+    private var consumingAmbientTouch = false
+
+    /** A file or stream another app asked CineK to open, waiting for the backstack. */
+    private var externalMedia by mutableStateOf<Destination.ExternalPlayer?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // After a configuration change the restored backstack already holds the player.
+        if (savedInstanceState == null) externalMedia = externalMediaFrom(intent)
         enableEdgeToEdge()
         setContent {
             val mainViewModel: MainViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
@@ -108,10 +118,19 @@ class MainActivity : ComponentActivity() {
                                     },
                                     onNavigate = { destination ->
                                         lastInteractionTime = System.currentTimeMillis()
-                                        if (destination is Destination.Player) isPlayerActive = true
+                                        if (destination.isPlayback) isPlayerActive = true
                                         backstack.add(destination)
                                     }
                                 )
+                            }
+
+                            LaunchedEffect(externalMedia) {
+                                val media = externalMedia ?: return@LaunchedEffect
+                                lastInteractionTime = System.currentTimeMillis()
+                                isAmbientActive = false
+                                isPlayerActive = true
+                                if (backstack.last() != media) backstack.add(media)
+                                externalMedia = null
                             }
                         }
                     }
@@ -134,6 +153,34 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        externalMediaFrom(intent)?.let { externalMedia = it }
+    }
+
+    private fun externalMediaFrom(intent: Intent?): Destination.ExternalPlayer? {
+        if (intent?.action != Intent.ACTION_VIEW) return null
+        val uri = intent.data ?: return null
+        return Destination.ExternalPlayer(uri.toString(), displayName(this, uri))
+    }
+
+    // Touch counts as activity for ambient mode the way remote keys do, and the
+    // first touch while ambient mode is showing only dismisses it.
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        lastInteractionTime = System.currentTimeMillis()
+        if (event.actionMasked == MotionEvent.ACTION_DOWN && isAmbientActive) {
+            isAmbientActive = false
+            consumingAmbientTouch = true
+        }
+        if (consumingAmbientTouch) {
+            if (event.actionMasked == MotionEvent.ACTION_UP || event.actionMasked == MotionEvent.ACTION_CANCEL) {
+                consumingAmbientTouch = false
+            }
+            return true
+        }
+        return super.dispatchTouchEvent(event)
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {

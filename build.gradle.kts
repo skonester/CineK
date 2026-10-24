@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "com.sasami.vlc"
-version = "1.0.1"
+version = "1.0.2"
 
 repositories {
     mavenCentral()
@@ -28,13 +28,17 @@ dependencies {
 compose.desktop {
     application {
         mainClass = "com.sasami.vlc.MainKt"
+        // The launcher draws this natively before the JVM starts loading classes; AWT
+        // closes it when the main window is shown. resources/common is copied to
+        // $APPDIR/resources, and the JDK picks splash@125pct.png and so on by DPI.
+        jvmArgs += "-splash:\$APPDIR/resources/splash.png"
         nativeDistributions {
             providers.gradleProperty("desktopOutputDir").orNull?.let {
                 outputBaseDir.set(project.layout.projectDirectory.dir(it))
             }
             targetFormats(org.jetbrains.compose.desktop.application.dsl.TargetFormat.Msi)
             packageName = "CineK"
-            packageVersion = "1.0.1"
+            packageVersion = project.version.toString()
             // Map resources so that extra native files (vlc DLLs) are bundled
             appResourcesRootDir.set(project.layout.projectDirectory.dir("resources"))
             // Declare JVM modules required by Compose, JNA/vlcj, and coroutines
@@ -53,6 +57,8 @@ compose.desktop {
 tasks.withType<JavaExec> {
     if (name == "run") {
         systemProperty("jna.library.path", project.layout.projectDirectory.dir("resources/common/vlc").asFile.absolutePath)
+        // $APPDIR only exists in the packaged launcher; the last -splash option wins.
+        jvmArgs("-splash:" + project.layout.projectDirectory.file("resources/common/splash.png").asFile.absolutePath)
     }
 }
 // Pure behavior checks do not load native VLC or touch the user's configuration.

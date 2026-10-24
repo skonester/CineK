@@ -4,7 +4,8 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -52,7 +53,7 @@ fun LiveChannelsPage() {
                 }
             }) { Icon(Icons.Default.FolderOpen, null); Spacer(Modifier.width(5.dp)); Text("Import file") }
             Spacer(Modifier.width(8.dp))
-            Button(onClick = { addOpen = true }, shape = RoundedCornerShape(12.dp)) {
+            Button(onClick = { addOpen = true }, shape = Theme.ControlShape) {
                 Icon(Icons.Default.Add, null); Spacer(Modifier.width(4.dp)); Text("Add playlist URL")
             }
         }
@@ -61,14 +62,14 @@ fun LiveChannelsPage() {
         }
         Spacer(Modifier.height(15.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Column(Modifier.width(205.dp).fillMaxHeight().background(Theme.SurfaceBar, RoundedCornerShape(16.dp)).padding(10.dp)) {
+            Column(Modifier.width(205.dp).fillMaxHeight().background(Theme.SurfaceLow, Theme.CardShape).border(1.dp, Theme.Border, Theme.CardShape).padding(10.dp)) {
                 SectionLabel("PLAYLISTS")
                 if (sources.isEmpty()) Text("Add a playlist to start watching.", color = Theme.TextMuted, fontSize = 12.sp,
                     modifier = Modifier.padding(8.dp))
                 sources.forEach { entry ->
                     val count = LiveChannels.channels.count { it.sourceId == entry.id }
-                    Column(Modifier.fillMaxWidth().background(if (entry.id == source?.id) Theme.AccentSoft else Theme.SurfaceBar,
-                        RoundedCornerShape(10.dp)).clickable { selected = entry.id; category = "All channels" }.padding(9.dp)) {
+                    Column(Modifier.fillMaxWidth().clip(Theme.ItemShape).background(if (entry.id == source?.id) Theme.AccentSoft else Color.Transparent)
+                        .clickable { selected = entry.id; category = "All channels" }.padding(9.dp)) {
                         Text(entry.name, color = if (entry.id == source?.id) Theme.Accent else Theme.TextPrimary,
                             maxLines = 2, overflow = TextOverflow.Ellipsis, fontSize = 13.sp)
                         Text(if (LiveChannels.loading == entry.id) "Loading…" else "$count channels",
@@ -97,13 +98,13 @@ fun LiveChannelsPage() {
                     }
                 }
             }
-            Column(Modifier.width(185.dp).fillMaxHeight().background(Theme.SurfaceBar, RoundedCornerShape(16.dp)).padding(10.dp)) {
+            Column(Modifier.width(185.dp).fillMaxHeight().background(Theme.SurfaceLow, Theme.CardShape).border(1.dp, Theme.Border, Theme.CardShape).padding(10.dp)) {
                 SectionLabel("CATEGORIES")
                 LazyColumn {
                     items(groups) { group ->
                         val count = if (group == "All channels") channels.size else channels.count { it.group == group }
-                        Row(Modifier.fillMaxWidth().background(if (category == group) Theme.AccentSoft else Theme.SurfaceBar,
-                            RoundedCornerShape(9.dp)).clickable { category = group }.padding(9.dp)) {
+                        Row(Modifier.fillMaxWidth().clip(Theme.ItemShape).background(if (category == group) Theme.AccentSoft else Color.Transparent)
+                            .clickable { category = group }.padding(9.dp)) {
                             Text(group, Modifier.weight(1f), color = if (category == group) Theme.Accent else Theme.TextSecondary,
                                 maxLines = 2, overflow = TextOverflow.Ellipsis, fontSize = 12.sp)
                             Text("$count", color = Theme.TextMuted, fontSize = 11.sp)
@@ -123,8 +124,10 @@ fun LiveChannelsPage() {
                     color = Theme.TextMuted, modifier = Modifier.padding(16.dp))
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     items(visible, key = { it.url }) { channel ->
-                        Row(Modifier.fillMaxWidth().background(if (PlayerStore.activeId == channel.url) Theme.AccentSoft else Theme.Surface,
-                            RoundedCornerShape(12.dp)).clickable { DesktopPlayback.play(channel.playerItem(), visible.map { it.playerItem() }, persist = false) }
+                        Row(Modifier.fillMaxWidth().clip(Theme.ItemShape)
+                            .background(if (PlayerStore.activeId == channel.url) Theme.AccentSoft else Theme.SurfaceLow)
+                            .border(1.dp, if (PlayerStore.activeId == channel.url) Theme.Accent else Theme.Border, Theme.ItemShape)
+                            .clickable { DesktopPlayback.play(channel.playerItem(), visible.map { it.playerItem() }, persist = false) }
                             .padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.LiveTv, null, Modifier.size(25.dp), tint = Theme.Accent)
                             Column(Modifier.weight(1f).padding(start = 11.dp)) {

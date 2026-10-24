@@ -49,6 +49,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -65,6 +67,13 @@ import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.ui.SubtitleView
 import androidx.media3.ui.PlayerView
 import androidx.tv.material3.*
+import me.xdan.aperture.ui.component.touch.Surface
+import me.xdan.aperture.ui.component.touch.Button
+import me.xdan.aperture.ui.component.touch.OutlinedButton
+import me.xdan.aperture.ui.component.touch.IconButton
+import me.xdan.aperture.ui.component.touch.touchClickable
+import me.xdan.aperture.ui.component.touch.touchSeek
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -186,6 +195,13 @@ fun PlayerScreen(
         onBack()
     }
 
+    fun closeQuickMenu() {
+        isQuickMenuVisible = false
+        viewModel.hideOsd()
+        if (wasPlayingBeforeQuickMenu) player.play()
+        wasPlayingBeforeQuickMenu = false
+    }
+
     BackHandler {
         when {
             compatibilityWarning != null -> {
@@ -196,12 +212,7 @@ fun PlayerScreen(
                 viewModel.dismissPlaybackFailure()
                 onBack()
             }
-            isQuickMenuVisible -> {
-                isQuickMenuVisible = false
-                viewModel.hideOsd()
-                if (wasPlayingBeforeQuickMenu) player.play()
-                wasPlayingBeforeQuickMenu = false
-            }
+            isQuickMenuVisible -> closeQuickMenu()
             isOsdVisible -> viewModel.hideOsd()
             else -> {
                 if (isPlaying) player.pause()
@@ -215,6 +226,36 @@ fun PlayerScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
+            // Touch: tap toggles the controls or closes the Quick Menu, double-tap the
+            // left or right third to skip 10 seconds, double-tap the middle to pause.
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onTap = {
+                        when {
+                            compatibilityWarning != null || playbackFailure != null -> Unit
+                            isQuickMenuVisible -> closeQuickMenu()
+                            isOsdVisible -> viewModel.hideOsd()
+                            else -> viewModel.showOsdBriefly()
+                        }
+                    },
+                    onDoubleTap = { offset ->
+                        if (compatibilityWarning != null || playbackFailure != null || isQuickMenuVisible) {
+                            return@detectTapGestures
+                        }
+                        val third = size.width / 3f
+                        when {
+                            offset.x < third -> player.seekTo((player.currentPosition - 10_000L).coerceAtLeast(0L))
+                            offset.x > size.width - third -> {
+                                val safeDuration = player.duration.takeIf { it > 0 } ?: Long.MAX_VALUE
+                                player.seekTo((player.currentPosition + 10_000L).coerceAtMost(safeDuration))
+                            }
+                            isPlaying -> player.pause()
+                            else -> player.play()
+                        }
+                        viewModel.showOsdBriefly()
+                    }
+                )
+            }
             .onPreviewKeyEvent { keyEvent ->
                 if (noticeVisible) false else if (keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
                     if (isOsdVisible && !isQuickMenuVisible && keyEvent.nativeKeyEvent.keyCode != KeyEvent.KEYCODE_BACK) {
@@ -350,12 +391,7 @@ fun PlayerScreen(
                 onSubtitleDelayReset = viewModel::resetSubtitleDelay,
                 videoResizeMode = videoResizeMode.media3Mode,
                 onVideoResizeModeSelected = { mode -> videoResizeMode = VideoResizeMode.entries.first { it.media3Mode == mode } },
-                onClose = {
-                    isQuickMenuVisible = false
-                    viewModel.hideOsd()
-                    if (wasPlayingBeforeQuickMenu) player.play()
-                    wasPlayingBeforeQuickMenu = false
-                },
+                onClose = ::closeQuickMenu,
                 onLeavePlayerToOpenSubtitles = onLeavePlayerToOpenSubtitles
             )
         }
@@ -637,10 +673,14 @@ private fun ThinPlayerOsd(
         }
     }
     fun endHold() { holdDirection = 0; seekJob?.cancel(); seekJob = null }
-    fun beginScrubbing(direction: Int, startHold: Boolean = true) {
+    fun startScrubbing() {
         if (!isScrubbing) {
             originalPosition = player.currentPosition; seekPosition = originalPosition; wasPlayingBeforeScrub = isPlaying; isScrubbing = true; onScrubbingChanged(true); player.pause()
         }
+    }
+    fun beginTouchScrubbing() { endHold(); startScrubbing() }
+    fun beginScrubbing(direction: Int, startHold: Boolean = true) {
+        startScrubbing()
         seekPosition = if (direction < 0) (seekPosition - 10_000L).coerceAtLeast(0L) else (seekPosition + 10_000L).coerceAtMost(duration)
         if (!startHold) return
         if (holdDirection == direction && seekJob?.isActive == true) return
@@ -723,7 +763,7 @@ private fun ThinPlayerOsd(
             Spacer(Modifier.width(12.dp))
             Text(text = formatTime(currentPosition), style = MaterialTheme.typography.bodyMedium, color = Color.White, modifier = Modifier.graphicsLayer { alpha = uiAlpha })
             Spacer(Modifier.width(10.dp))
-            PlayerSeekProgress(player = player, mediaSource = mediaSource, progress = if (duration > 0L) (currentPosition.toFloat() / duration).coerceIn(0f, 1f) else 0f, isPlaying = isPlaying, scrubbing = isScrubbing, seekPosition = seekPosition, modifier = Modifier.weight(1f).height(24.dp))
+            PlayerSeekProgress(player = player, mediaSource = mediaSource, progress = if (duration > 0L) (currentPosition.toFloat() / duration).coerceIn(0f, 1f) else 0f, isPlaying = isPlaying, scrubbing = isScrubbing, seekPosition = seekPosition, modifier = Modifier.weight(1f).height(24.dp).touchSeek(onSeekStart = ::beginTouchScrubbing, onSeekEnd = ::commitScrubbing) { fraction -> seekPosition = (fraction * duration).toLong() })
             Spacer(Modifier.width(10.dp))
             Text(text = formatTime(duration), style = MaterialTheme.typography.bodyMedium, color = Color.White, modifier = Modifier.graphicsLayer { alpha = uiAlpha })
         }
@@ -734,7 +774,8 @@ private fun ThinPlayerOsd(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .size(56.dp)
-                    .offset(y = 32.dp),
+                    .offset(y = 32.dp)
+                    .touchClickable(remember { MutableInteractionSource() }, onClick = onQuickMenu),
                 tint = Color.White.copy(alpha = 0.62f)
             )
         }

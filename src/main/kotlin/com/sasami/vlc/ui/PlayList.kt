@@ -26,7 +26,7 @@ import com.sasami.vlc.theme.Theme
 @Composable
 fun PlayList() {
     val queue = DesktopPlayback.queue.mapNotNull { path -> (DesktopPlayback.transientItems + PlayerStore.playerList).find { it.path == path } }
-    Column(Modifier.width(272.dp).fillMaxHeight().background(Theme.SurfaceLow).padding(14.dp)) {
+    Column(Modifier.width(272.dp).fillMaxHeight().background(Theme.SurfaceLow).hairline(Edge.Start).padding(14.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("Up next", color = Theme.TextPrimary, fontSize = 21.sp)
@@ -42,7 +42,7 @@ fun PlayList() {
                 val interaction = remember { MutableInteractionSource() }
                 val focused = interaction.collectIsFocusedAsState().value
                 val hovered = interaction.collectIsHoveredAsState().value
-                val cardColor = animateColorAsState(when {
+                val cardColor = animateColorAsState(animationSpec = Theme.ease(), targetValue = when {
                     focused -> Theme.SurfaceFocused
                     active -> Theme.AccentSoft
                     hovered -> Theme.SurfaceHigh

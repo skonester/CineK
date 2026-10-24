@@ -49,9 +49,9 @@ private val pages = listOf(
 
 @Composable
 fun LibraryNavigation() {
-    Column(Modifier.width(216.dp).fillMaxHeight().background(Theme.SurfaceLow).padding(14.dp)) {
+    Column(Modifier.width(216.dp).fillMaxHeight().background(Theme.SurfaceLow).hairline(Edge.End).padding(14.dp)) {
         Row(Modifier.padding(10.dp, 20.dp), verticalAlignment = Alignment.CenterVertically) {
-            Surface(color = Theme.AccentSoft, shape = RoundedCornerShape(14.dp)) {
+            Surface(color = Theme.AccentSoft, shape = Theme.ItemShape) {
                 Image(androidx.compose.ui.res.painterResource("icon.png"), "CineK", Modifier.size(46.dp).padding(3.dp))
             }
             Spacer(Modifier.width(10.dp))
@@ -67,7 +67,7 @@ fun LibraryNavigation() {
             val interaction = remember { MutableInteractionSource() }
             val focused = interaction.collectIsFocusedAsState().value
             val hovered = interaction.collectIsHoveredAsState().value
-            val navColor = animateColorAsState(when {
+            val navColor = animateColorAsState(animationSpec = Theme.ease(), targetValue = when {
                 focused -> Theme.SurfaceFocused
                 selected -> Theme.AccentSoft
                 hovered -> Theme.SurfaceHigh
@@ -143,7 +143,7 @@ fun LibraryDashboard() {
                 }
                 ActionIcon(Icons.Default.FolderOpen, "Add folder") { DesktopPlayback.openFolder() }
                 ActionIcon(Icons.Default.Link, "Open stream") { LibraryStore.dialog = "stream" }
-                Button(onClick = { DesktopPlayback.openFiles() }, shape = RoundedCornerShape(14.dp),
+                Button(onClick = { DesktopPlayback.openFiles() }, shape = Theme.ControlShape,
                     contentPadding = PaddingValues(14.dp, 10.dp)) {
                     Icon(Icons.Default.Add, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("Open media")
                 }
@@ -155,9 +155,9 @@ fun LibraryDashboard() {
                     placeholder = { Text("Search media", fontSize = 13.sp) },
                     leadingIcon = { Icon(Icons.Default.Search, null, Modifier.size(20.dp)) },
                     trailingIcon = if (query.isNotEmpty()) ({ ActionIcon(Icons.Default.Close, "Clear search") { query = "" } }) else null,
-                    shape = RoundedCornerShape(16.dp),
+                    shape = Theme.ControlShape,
                     colors = TextFieldDefaults.outlinedTextFieldColors(unfocusedBorderColor = Theme.Border,
-                        backgroundColor = Theme.SurfaceBar, textColor = Theme.TextPrimary))
+                        backgroundColor = Theme.SurfaceLow, textColor = Theme.TextPrimary))
                 Box {
                     TextButton(onClick = { sortMenu = true }) {
                         Icon(Icons.Default.Sort, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text(sort, fontSize = 12.sp)
@@ -284,7 +284,7 @@ private fun BrowseRow(onClick: () -> Unit, content: @Composable RowScope.() -> U
     val interaction = remember { MutableInteractionSource() }
     val focused = interaction.collectIsFocusedAsState().value
     val hovered = interaction.collectIsHoveredAsState().value
-    val color = animateColorAsState(when {
+    val color = animateColorAsState(animationSpec = Theme.ease(), targetValue = when {
         focused -> Theme.SurfaceFocused
         hovered -> Theme.SurfaceHigh
         else -> Theme.SurfaceLow
@@ -345,7 +345,7 @@ private fun ContinueWatchingShelf(entries: List<Pair<PlayerItem, WatchEntry>>) {
                 val interaction = remember { MutableInteractionSource() }
                 val focused = interaction.collectIsFocusedAsState().value
                 val hovered = interaction.collectIsHoveredAsState().value
-                val color = animateColorAsState(when {
+                val color = animateColorAsState(animationSpec = Theme.ease(), targetValue = when {
                     focused -> Theme.SurfaceFocused
                     hovered -> Theme.SurfaceHigh
                     else -> Theme.SurfaceLow
@@ -380,7 +380,7 @@ private fun ContinueWatchingShelf(entries: List<Pair<PlayerItem, WatchEntry>>) {
 private fun MediaArtwork(item: PlayerItem, modifier: Modifier) {
     val history = LibraryStore.history.find { it.path == item.path }
     val tint = when (item.type) { "audio" -> Theme.AccentHover; "stream" -> Theme.AccentHighlight; else -> Theme.Accent }
-    Box(modifier.clip(RoundedCornerShape(15.dp)).background(
+    Box(modifier.clip(Theme.ItemShape).background(
         Brush.linearGradient(listOf(tint.copy(alpha = 0.16f), Theme.SurfaceBar))), contentAlignment = Alignment.Center) {
         Icon(when (item.type) { "audio" -> Icons.Default.MusicNote; "stream" -> Icons.Default.Language; else -> Icons.Default.Movie },
             null, Modifier.size(40.dp), tint = tint.copy(alpha = 0.7f))
@@ -404,17 +404,17 @@ private fun MediaCard(item: PlayerItem, grid: Boolean, onPlay: () -> Unit) {
     val interaction = remember { MutableInteractionSource() }
     val focused = interaction.collectIsFocusedAsState().value
     val hovered = interaction.collectIsHoveredAsState().value
-    val cardColor = animateColorAsState(when {
+    val cardColor = animateColorAsState(animationSpec = Theme.ease(), targetValue = when {
         focused -> Theme.SurfaceFocused
         active -> Theme.AccentSoft
         hovered -> Theme.SurfaceHigh
         else -> Theme.SurfaceLow
     })
-    val scale = animateFloatAsState(if (focused) 1.025f else if (hovered) 1.01f else 1f)
+    val scale = animateFloatAsState(animationSpec = Theme.ease(), targetValue = if (focused) 1.025f else if (hovered) 1.01f else 1f)
     Surface(modifier = Modifier.hoverable(interaction).graphicsLayer { scaleX = scale.value; scaleY = scale.value },
         color = cardColor.value, shape = Theme.CardShape,
         border = BorderStroke(if (focused) 2.dp else 1.dp,
-            if (focused || active) Theme.Accent else if (hovered) Theme.TextMuted else Theme.Border)) {
+            if (focused || active) Theme.Accent else if (hovered) Theme.BorderStrong else Theme.Border)) {
         @Composable fun details(modifier: Modifier) {
             Column(modifier) {
                 Text(item.name, color = Theme.TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Medium,

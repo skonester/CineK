@@ -22,8 +22,8 @@ android {
         applicationId = "com.sasami.cinek.experimental"
         minSdk = 27
         targetSdk = 36
-        versionCode = 3
-        versionName = "0.2.1"
+        versionCode = 4
+        versionName = "1.0.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -47,6 +47,10 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+    }
+    testOptions {
+        // Robolectric needs the merged resources and the ui-test-manifest activity for Compose UI tests.
+        unitTests.isIncludeAndroidResources = true
     }
     buildFeatures {
         compose = true
@@ -89,6 +93,7 @@ dependencies {
     implementation(libs.hilt.android)
     implementation(libs.hilt.navigation.compose)
     implementation(libs.androidx.media3.exoplayer)
+    implementation(libs.androidx.media3.exoplayer.hls)
     implementation(libs.androidx.media3.ui.compose)
     implementation(libs.androidx.media3.ui)
     implementation(libs.androidx.media3.session)
@@ -108,6 +113,9 @@ dependencies {
     testImplementation(libs.androidx.junit)
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    testImplementation(libs.robolectric)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)

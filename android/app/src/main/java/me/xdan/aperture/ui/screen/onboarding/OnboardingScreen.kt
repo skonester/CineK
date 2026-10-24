@@ -42,11 +42,11 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.tv.material3.Button
+import me.xdan.aperture.ui.component.touch.Button
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.MaterialTheme
-import androidx.tv.material3.OutlinedButton
-import androidx.tv.material3.Surface
+import me.xdan.aperture.ui.component.touch.OutlinedButton
+import me.xdan.aperture.ui.component.touch.Surface
 import androidx.tv.material3.SurfaceDefaults
 import androidx.tv.material3.Text
 import coil.compose.AsyncImage

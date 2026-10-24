@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.tv.material3.*
+import me.xdan.aperture.ui.component.touch.Surface
 import me.xdan.aperture.ui.component.MediaCard
 import me.xdan.aperture.ui.theme.ApertureTheme
 import me.xdan.aperture.data.local.entity.MediaEntity

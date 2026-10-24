@@ -34,6 +34,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.tv.material3.*
+import me.xdan.aperture.ui.component.touch.Surface
+import me.xdan.aperture.ui.component.touch.Button
+import me.xdan.aperture.ui.component.touch.OutlinedButton
+import me.xdan.aperture.ui.component.LocalLibraryAccess
+import me.xdan.aperture.ui.component.actionLabel
+import me.xdan.aperture.ui.component.guidance
+import me.xdan.aperture.ui.screen.open.LocalMediaOpener
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import kotlinx.coroutines.delay
@@ -86,13 +93,32 @@ fun HomeScreen(
                     modifier = Modifier.align(Alignment.Center),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(if (isScanning) "Scanning your library..." else "No videos in your CineK library yet.")
+                    val libraryAccess = LocalLibraryAccess.current
+                    val access = libraryAccess.access
+                    val opener = LocalMediaOpener.current
+                    Text(
+                        when {
+                            isScanning -> "Scanning your library..."
+                            !access.hasAny -> "CineK can't see your videos and music yet."
+                            else -> "No videos in your CineK library yet."
+                        },
+                        style = MaterialTheme.typography.headlineSmall
+                    )
                     Spacer(Modifier.height(8.dp))
-                    Text("Allow device videos or add a media folder in Settings.")
+                    Text(
+                        libraryAccess.guidance() ?: if (!access.hasAny) {
+                            "Allow access so CineK can find them, or open a file to play it now."
+                        } else {
+                            "Add a media folder, scan again, or open a file to play it now."
+                        },
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     Spacer(Modifier.height(16.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Button(
-                            onClick = { onOpenLibrary(Destination.Settings) },
+                            onClick = {
+                                if (access.isComplete) onOpenLibrary(Destination.Settings) else libraryAccess.request()
+                            },
                             modifier = Modifier
                                 .focusRequester(contentEntryFocusRequester)
                                 .onFocusChanged { if (it.isFocused) onContentFocused(contentEntryFocusRequester) },
@@ -108,7 +134,8 @@ fun HomeScreen(
                                     pressedContentColor = ApertureTheme.colorScheme.onPrimary
                                 )
                             }
-                        ) { Text("Library settings") }
+                        ) { Text(if (access.isComplete) "Library settings" else libraryAccess.actionLabel()) }
+                        OutlinedButton(onClick = opener::openFile) { Text("Open a file") }
                         OutlinedButton(
                             onClick = viewModel::rescan,
                             enabled = !isScanning

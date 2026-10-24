@@ -1,0 +1,120 @@
+name: Build and pre-release
+
+# Every push to main builds and checks the Windows installer and the Android APK,
+# then publishes both as a GitHub pre-release. Each run gets its own tag,
+# v<version>-build.<run number>, so pushes never collide with an earlier release.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One publish at a time; a newer push waits rather than cancelling a release mid-upload.
+concurrency:
+  group: build-and-pre-release
+  cancel-in-progress: false
+
+jobs:
+  version:
+    name: Read version
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.read.outputs.version }}
+      tag: ${{ steps.read.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Read and compare the desktop and Android versions
+        id: read
+        run: |
+          desktop=$(sed -n 's/^version = "\([^"]*\)"/\1/p' build.gradle.kts)
+          android=$(sed -n 's/^ *versionName = "\([^"]*\)"/\1/p' android/app/build.gradle.kts)
+          if [ -z "$desktop" ]; then
+            echo "::error file=build.gradle.kts::Cannot read the version from build.gradle.kts."
+            exit 1
+          fi
+          if [ "$desktop" != "$android" ]; then
+            echo "::error file=android/app/build.gradle.kts::Android versionName ($android) must match the desktop version ($desktop)."
+            exit 1
+          fi
+          echo "version=$desktop" >> "$GITHUB_OUTPUT"
+          echo "tag=v$desktop-build.$GITHUB_RUN_NUMBER" >> "$GITHUB_OUTPUT"
+
+  windows:
+    name: Windows installer
+    needs: version
+    runs-on: windows-2022 # Includes Inno Setup 6, which scripts/build-setup.ps1 needs.
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Build and check Windows installer
+        shell: pwsh
+        run: ./scripts/build-setup.ps1
+      - uses: actions/upload-artifact@v7
+        with:
+          name: windows-installer
+          path: out/setup/CineK-${{ needs.version.outputs.version }}-Setup.exe
+          if-no-files-found: error
+
+  android:
+    name: Android APK
+    needs: version
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v4
+      - name: Install Android SDK packages
+        run: sdkmanager 'platforms;android-37.0' 'build-tools;36.0.0'
+      - name: Configure optional metadata APIs
+        env:
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+          OPENSUBTITLES_API_KEY: ${{ secrets.OPENSUBTITLES_API_KEY }}
+        run: |
+          printf 'TMDB_API_KEY=%s\n' "$TMDB_API_KEY" > android/local.properties
+          printf 'OPENSUBTITLES_API_KEY=%s\n' "$OPENSUBTITLES_API_KEY" >> android/local.properties
+      - name: Build and test CineK Android
+        # Via bash, so the build does not depend on gradlew keeping its executable bit through Windows commits.
+        run: bash ./gradlew -p android :app:assembleDebug :app:testDebugUnitTest --no-daemon
+      - name: Name the APK after the version
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk "CineK-${{ needs.version.outputs.version }}-Android.apk"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: android-apk
+          path: CineK-${{ needs.version.outputs.version }}-Android.apk
+          if-no-files-found: error
+
+  release:
+    name: Publish pre-release
+    needs: [version, windows, android]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: release
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ needs.version.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: CineK ${{ needs.version.outputs.version }} (build ${{ github.run_number }})
+          prerelease: true
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: |
+            release/CineK-${{ needs.version.outputs.version }}-Setup.exe
+            release/CineK-${{ needs.version.outputs.version }}-Android.apk
+          body: |
+            Automatic pre-release built from ${{ github.sha }} on `main`.
+
+            - **Windows:** `CineK-${{ needs.version.outputs.version }}-Setup.exe`
+            - **Android:** `CineK-${{ needs.version.outputs.version }}-Android.apk`, a debug-signed test build for phones and Android TV (API 27+).

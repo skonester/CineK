@@ -2,6 +2,9 @@ package me.xdan.aperture.ui.theme
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.MaterialExpressiveTheme
+import androidx.compose.material3.MotionScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
@@ -59,6 +62,7 @@ private val DarkColorScheme = darkColorScheme(
     onSurfaceVariant = OnSurfaceVariant,
 )
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ApertureTheme(
     themeId: String = "cinek",
@@ -131,13 +135,53 @@ fun ApertureTheme(
     }
 
     CompositionLocalProvider(LocalApertureTokens provides tokens) {
-        MaterialTheme(
-            colorScheme = scheme,
-            typography = Typography,
-            content = content
-        )
+        // The phone/Material 3 components (loading and wavy progress indicators,
+        // ripples) read the standard Material theme, so give them the same palette
+        // and expressive motion as the TV components.
+        MaterialExpressiveTheme(
+            colorScheme = scheme.toMaterial3ColorScheme(),
+            motionScheme = MotionScheme.expressive()
+        ) {
+            MaterialTheme(
+                colorScheme = scheme,
+                typography = Typography,
+                content = content
+            )
+        }
     }
 }
+
+private fun ColorScheme.toMaterial3ColorScheme() = androidx.compose.material3.darkColorScheme(
+    primary = primary,
+    onPrimary = onPrimary,
+    primaryContainer = primaryContainer,
+    onPrimaryContainer = onPrimaryContainer,
+    inversePrimary = inversePrimary,
+    secondary = secondary,
+    onSecondary = onSecondary,
+    secondaryContainer = secondaryContainer,
+    onSecondaryContainer = onSecondaryContainer,
+    tertiary = tertiary,
+    onTertiary = onTertiary,
+    tertiaryContainer = tertiaryContainer,
+    onTertiaryContainer = onTertiaryContainer,
+    background = background,
+    onBackground = onBackground,
+    surface = surface,
+    onSurface = onSurface,
+    surfaceVariant = surfaceVariant,
+    onSurfaceVariant = onSurfaceVariant,
+    surfaceTint = surfaceTint,
+    inverseSurface = inverseSurface,
+    inverseOnSurface = inverseOnSurface,
+    error = error,
+    onError = onError,
+    errorContainer = errorContainer,
+    onErrorContainer = onErrorContainer,
+    outline = border,
+    outlineVariant = borderVariant,
+    scrim = scrim
+)
 
 /**
  * Accessor for Aperture expressive tokens.

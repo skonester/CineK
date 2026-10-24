@@ -1,7 +1,6 @@
 package com.sasami.vlc.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.*
@@ -38,7 +37,7 @@ fun WindowScope.PlayerBar() {
         PlayerChrome.toolbarBounds = java.awt.Rectangle(
             (bounds.left / transform.scaleX).roundToInt(), (bounds.top / transform.scaleY).roundToInt(),
             (bounds.width / transform.scaleX).roundToInt(), (bounds.height / transform.scaleY).roundToInt())
-    }.background(Theme.SurfaceLow).border(width = 1.dp, color = Theme.Border)
+    }.background(Theme.SurfaceLow).hairline(Edge.Top)
         .padding(horizontal = 22.dp, vertical = 8.dp)) {
         if (active) {
             TimelineSeekBar()

@@ -4,9 +4,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.MaterialTheme
-import androidx.compose.material.darkColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.PointerIcon
@@ -256,8 +259,10 @@ fun main(args: Array<String>) {
             VlcPlayer.release()
             exitApplication()
         }
+        // Hidden until start-up finishes; showing it is what closes the splash logo.
+        var startupComplete by remember { mutableStateOf(false) }
         Window(onCloseRequest = { closeApp() }, state = state, title = "CineK",
-            icon = painterResource("icon.png"), undecorated = true) {
+            icon = painterResource("icon.png"), undecorated = true, visible = startupComplete) {
             val library = com.sasami.vlc.store.LibraryStore
             val playback = com.sasami.vlc.player.DesktopPlayback
             val jFrame = window as? JFrame
@@ -265,13 +270,20 @@ fun main(args: Array<String>) {
             val fullscreenWindow = androidx.compose.runtime.remember(window) { com.sasami.vlc.ui.BorderlessFullscreen(window) }
             LaunchedEffect(library.fullscreen) { fullscreenWindow.setEnabled(library.fullscreen) }
             LaunchedEffect(Unit) {
-                PlayerStore.load()
-                library.load()
-                com.sasami.vlc.store.LiveChannels.load()
-                VlcPlayer.init()
-                playback.attach()
+                try {
+                    PlayerStore.load()
+                    library.load()
+                    com.sasami.vlc.store.LiveChannels.load()
+                    VlcPlayer.init()
+                    playback.attach()
+                    jFrame?.let { it.minimumSize = java.awt.Dimension(1000, 650); registerDragAndDrop(it) }
+                    com.sasami.vlc.ui.StartupSplash.awaitMinimum()
+                } finally {
+                    startupComplete = true
+                }
+                // Playing needs VLC's native video surface, which exists once the window shows.
+                kotlinx.coroutines.withTimeoutOrNull(5_000) { while (!window.isShowing) kotlinx.coroutines.delay(16) }
                 if (launchFiles.isNotEmpty()) playback.importFiles(launchFiles.map(::File), playFirst = true)
-                jFrame?.let { it.minimumSize = java.awt.Dimension(1000, 650); registerDragAndDrop(it) }
             }
 
             LaunchedEffect(PlayerStore.activeId) {
@@ -322,9 +334,7 @@ fun main(args: Array<String>) {
                 onDispose { java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().removeKeyEventDispatcher(dispatcher) }
             }
 
-            MaterialTheme(colors = darkColors(primary = Theme.Accent, secondary = Theme.Accent, background = Theme.Bg,
-                surface = Theme.Surface, onPrimary = Theme.Bg, onSurface = Theme.TextPrimary),
-                typography = Theme.typography) {
+            MaterialTheme(colors = Theme.colors, typography = Theme.typography, shapes = Theme.shapes) {
                 Box(Modifier.fillMaxSize().background(Theme.Bg)) {
                     Column(Modifier.fillMaxSize()) {
                         if (!library.fullscreen) TitleBar(onClose = { closeApp() })

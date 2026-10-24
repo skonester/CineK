@@ -71,13 +71,16 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import androidx.tv.material3.Border
-import androidx.tv.material3.Button
+import me.xdan.aperture.ui.component.touch.Button
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
-import androidx.tv.material3.OutlinedButton
-import androidx.tv.material3.Surface
+import me.xdan.aperture.ui.component.touch.OutlinedButton
+import me.xdan.aperture.ui.component.touch.Surface
+import me.xdan.aperture.ui.component.LocalLibraryAccess
+import me.xdan.aperture.ui.component.musicStatus
+import me.xdan.aperture.ui.component.videoStatus
 import androidx.tv.material3.SurfaceDefaults
 import androidx.tv.material3.Text
 import kotlinx.coroutines.delay
@@ -130,33 +133,13 @@ fun SettingsScreen(
     var showMediaFolders by remember { mutableStateOf(false) }
     var showAmbientSettings by remember { mutableStateOf(false) }
     var showTmdbQr by remember { mutableStateOf(false) }
-    val videoPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        Manifest.permission.READ_MEDIA_VIDEO
-    } else {
-        Manifest.permission.READ_EXTERNAL_STORAGE
-    }
-    var hasDeviceVideoAccess by remember(context) {
-        mutableStateOf(
-            ContextCompat.checkSelfPermission(context, videoPermission) == PackageManager.PERMISSION_GRANTED
-        )
-    }
-    var permissionRequestDenied by remember { mutableStateOf(false) }
+    // Shared with the launch prompt, which rescans whenever access is granted.
+    val libraryAccess = LocalLibraryAccess.current
+    val deviceAccess = libraryAccess.access
     var appSettingsAvailable by remember { mutableStateOf(true) }
-    val videoPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        hasDeviceVideoAccess = granted
-        permissionRequestDenied = !granted
-        if (granted) viewModel.forceRescan()
-    }
     val appSettingsLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
-    ) {
-        hasDeviceVideoAccess = ContextCompat.checkSelfPermission(
-            context, videoPermission
-        ) == PackageManager.PERMISSION_GRANTED
-        if (hasDeviceVideoAccess) viewModel.forceRescan()
-    }
+    ) { }
     var folderPickerAvailable by remember(context) {
         mutableStateOf(
             hasFolderPicker(context.packageManager)
@@ -494,11 +477,11 @@ fun SettingsScreen(
 
             item {
                 SettingsItem(
-                    title = "Device videos",
+                    title = "Device videos and music",
                     subtitle = when {
-                        hasDeviceVideoAccess -> "Access allowed. Select to scan device videos"
-                        permissionRequestDenied -> "Access was not granted. Use App permissions or add a media folder"
-                        else -> "Allow CineK to find videos indexed by Android (optional)"
+                        deviceAccess.isComplete -> "Access allowed. Select to scan this device"
+                        libraryAccess.mustUseSettings -> "Access not allowed. Select to open Android settings"
+                        else -> "Videos: ${deviceAccess.videoStatus()} · Music: ${deviceAccess.musicStatus()}. Select to allow"
                     },
                     icon = Icons.Rounded.Movie,
                     drawerFocusRequester = drawerFocusRequester,
@@ -510,12 +493,7 @@ fun SettingsScreen(
                         onContentFocused(requester)
                     },
                     onClick = {
-                        if (hasDeviceVideoAccess) {
-                            viewModel.forceRescan()
-                        } else {
-                            runCatching { videoPermissionLauncher.launch(videoPermission) }
-                                .onFailure { permissionRequestDenied = true }
-                        }
+                        if (deviceAccess.isComplete) viewModel.forceRescan() else libraryAccess.request()
                     }
                 )
             }
@@ -524,7 +502,7 @@ fun SettingsScreen(
                 SettingsItem(
                     title = "App permissions",
                     subtitle = if (appSettingsAvailable) {
-                        "Open Android settings if the video access prompt does not appear"
+                        "Open Android settings to change what CineK can access"
                     } else {
                         "Android app settings are unavailable on this device"
                     },
@@ -1758,7 +1736,7 @@ private fun SpotlightDaysDialog(
                         horizontalArrangement = Arrangement.spacedBy(ApertureTheme.spacing.small),
                         modifier = Modifier.align(Alignment.End)
                     ) {
-                        androidx.tv.material3.OutlinedButton(onClick = onDismiss) { Text("Cancel") }
+                        OutlinedButton(onClick = onDismiss) { Text("Cancel") }
                         Button(onClick = { onSave(days) }) { Text("Save") }
                     }
                 }

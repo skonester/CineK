@@ -17,9 +17,21 @@ import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
 import androidx.tv.material3.*
+import me.xdan.aperture.ui.component.touch.Surface
+import me.xdan.aperture.ui.component.touch.NavigationDrawerItem
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import androidx.compose.runtime.saveable.rememberSaveable
+import me.xdan.aperture.domain.repository.LibraryPreparationStage
+import me.xdan.aperture.ui.component.LibraryAccessPrompt
+import me.xdan.aperture.ui.component.LocalLibraryAccess
+import me.xdan.aperture.ui.component.rememberLibraryAccess
+import me.xdan.aperture.ui.screen.open.OpenMediaScreen
+import me.xdan.aperture.ui.screen.live.LiveChannelPlayer
+import me.xdan.aperture.ui.screen.live.LiveTvScreen
+import me.xdan.aperture.ui.screen.open.ProvideMediaOpener
+import me.xdan.aperture.ui.screen.player.ExternalPlayerScreen
 import me.xdan.aperture.ui.screen.home.HomeScreen
 import me.xdan.aperture.ui.screen.search.SearchScreen
 import me.xdan.aperture.ui.screen.player.PlayerScreen
@@ -51,12 +63,22 @@ fun NavGraph(
     val mediaActionsViewModel: MediaActionsViewModel = viewModel()
     val mediaActionState by mediaActionsViewModel.state.collectAsState()
     val currentDestination = backstack.last()
-    val showDrawer = currentDestination !is Destination.Player
+    val isPlayback = currentDestination.isPlayback
+    val showDrawer = !isPlayback
     val currentFocusKey = currentDestination.focusKey()
 
-    LaunchedEffect(currentDestination is Destination.Player) {
-        onPlayerStateChanged(currentDestination is Destination.Player)
+    LaunchedEffect(isPlayback) {
+        onPlayerStateChanged(isPlayback)
     }
+
+    // One access tracker for the whole app, so a grant triggers exactly one rescan.
+    val libraryAccess = rememberLibraryAccess(
+        onAccessGained = { mainViewModel.startLibraryPreparation(force = true) }
+    )
+    var accessPromptDismissed by rememberSaveable { mutableStateOf(false) }
+    val libraryPreparation by mainViewModel.libraryPreparation.collectAsState()
+    val isScanning = libraryPreparation.stage == LibraryPreparationStage.DISCOVERING ||
+        libraryPreparation.stage == LibraryPreparationStage.MATCHING
     
     var selectedMediaId by remember { mutableStateOf<Long?>(null) }
     var selectedEpisodeOnly by remember { mutableStateOf(false) }
@@ -75,6 +97,10 @@ fun NavGraph(
     val showsDrawerRequester = remember { FocusRequester() }
     val myListDrawerRequester = remember { FocusRequester() }
     val settingsDrawerRequester = remember { FocusRequester() }
+    val openDrawerRequester = remember { FocusRequester() }
+    val openContentEntryRequester = remember { FocusRequester() }
+    val liveTvDrawerRequester = remember { FocusRequester() }
+    val liveTvContentEntryRequester = remember { FocusRequester() }
     val homeContentEntryRequester = remember { FocusRequester() }
     val searchContentEntryRequester = remember { FocusRequester() }
     val settingsContentEntryRequester = remember { FocusRequester() }
@@ -88,7 +114,9 @@ fun NavGraph(
             "movies" to moviesDrawerRequester,
             "shows" to showsDrawerRequester,
             "my_list" to myListDrawerRequester,
-            "settings" to settingsDrawerRequester
+            "settings" to settingsDrawerRequester,
+            "open" to openDrawerRequester,
+            "live_tv" to liveTvDrawerRequester
         )
     }
     val contentEntryRequesters = remember {
@@ -98,7 +126,9 @@ fun NavGraph(
             "movies" to moviesContentEntryRequester,
             "shows" to showsContentEntryRequester,
             "my_list" to myListContentEntryRequester,
-            "settings" to settingsContentEntryRequester
+            "settings" to settingsContentEntryRequester,
+            "open" to openContentEntryRequester,
+            "live_tv" to liveTvContentEntryRequester
         )
     }
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
@@ -161,6 +191,12 @@ fun NavGraph(
         if (destination is Destination.MyList) {
             lastFocusedRequesters.remove("my_list")
         }
+        if (destination is Destination.Open) {
+            lastFocusedRequesters.remove("open")
+        }
+        if (destination is Destination.LiveTv) {
+            lastFocusedRequesters.remove("live_tv")
+        }
         if (destination is Destination.Settings) {
             lastFocusedRequesters.remove("settings")
             settingsRestoreFocusKey = null
@@ -211,6 +247,8 @@ fun NavGraph(
                 "shows" -> showsContentEntryRequester
                 "my_list" -> myListContentEntryRequester
                 "settings" -> settingsContentEntryRequester
+                "open" -> openContentEntryRequester
+                "live_tv" -> liveTvContentEntryRequester
                 else -> null
             }
             fallback?.let { runCatching { it.requestFocus() } }
@@ -233,6 +271,8 @@ fun NavGraph(
             "movies" -> moviesContentEntryRequester
             "shows" -> showsContentEntryRequester
             "settings" -> settingsContentEntryRequester
+            "open" -> openContentEntryRequester
+            "live_tv" -> liveTvContentEntryRequester
             else -> null
         }
         val restoredRememberedFocus = rememberedRequester?.let { requester ->
@@ -247,6 +287,11 @@ fun NavGraph(
         playerOriginFocusKey = null
     }
 
+    CompositionLocalProvider(LocalLibraryAccess provides libraryAccess) {
+    ProvideMediaOpener(onPlay = { destination ->
+        playerOriginFocusKey = currentFocusKey
+        onNavigate(destination)
+    }) {
     ProvideFocusMemory {
             if (showDrawer) {
                 NavigationDrawer(
@@ -340,6 +385,30 @@ fun NavGraph(
                                 Text("Home")
                             }
                             NavigationDrawerItem(
+                                selected = currentDestination is Destination.Open,
+                                onClick = { selectDrawerDestination(Destination.Open) },
+                                modifier = Modifier
+                                    .focusRequester(openDrawerRequester)
+                                    .focusProperties {
+                                        right = drawerReturnFocusRequester ?: openContentEntryRequester
+                                    },
+                                leadingContent = { Icon(Icons.Rounded.FileOpen, contentDescription = null) }
+                            ) {
+                                Text("Open")
+                            }
+                            NavigationDrawerItem(
+                                selected = currentDestination is Destination.LiveTv,
+                                onClick = { selectDrawerDestination(Destination.LiveTv) },
+                                modifier = Modifier
+                                    .focusRequester(liveTvDrawerRequester)
+                                    .focusProperties {
+                                        right = drawerReturnFocusRequester ?: liveTvContentEntryRequester
+                                    },
+                                leadingContent = { Icon(Icons.Rounded.LiveTv, contentDescription = null) }
+                            ) {
+                                Text("Live TV")
+                            }
+                            NavigationDrawerItem(
                                 selected = currentDestination is Destination.Search,
                                 onClick = { selectDrawerDestination(Destination.Search) },
                                 modifier = Modifier
@@ -424,6 +493,12 @@ fun NavGraph(
                         onContentFocused = { focusKey, requester ->
                             lastFocusedRequesters[focusKey] = requester
                         },
+                        onPlayLive = { destination ->
+                            playerOriginFocusKey = currentFocusKey
+                            onNavigate(destination)
+                        },
+                        isScanning = isScanning,
+                        onRescan = { mainViewModel.startLibraryPreparation(force = true) },
                         onMediaClick = { focusKey, mediaId, requester, episodeOnly ->
                             lastFocusedRequesters[focusKey] = requester
                             mainViewModel.setActiveMedia(mediaId)
@@ -462,6 +537,12 @@ fun NavGraph(
                     onContentFocused = { focusKey, requester ->
                         lastFocusedRequesters[focusKey] = requester
                     },
+                    onPlayLive = { destination ->
+                        playerOriginFocusKey = currentFocusKey
+                        onNavigate(destination)
+                    },
+                    isScanning = isScanning,
+                    onRescan = { mainViewModel.startLibraryPreparation(force = true) },
                     onMediaClick = { focusKey, mediaId, requester, episodeOnly ->
                         lastFocusedRequesters[focusKey] = requester
                         mainViewModel.setActiveMedia(mediaId)
@@ -557,6 +638,8 @@ fun NavGraph(
                         "movies" -> moviesContentEntryRequester
                         "shows" -> showsContentEntryRequester
                         "settings" -> settingsContentEntryRequester
+                        "open" -> openContentEntryRequester
+                        "live_tv" -> liveTvContentEntryRequester
                         else -> null
                     }
                     val restored = rememberedRequester?.let { requester ->
@@ -571,6 +654,13 @@ fun NavGraph(
             )
 
         }
+
+        // Ask for library access on launch until it is granted or put off for this session.
+        if (!accessPromptDismissed && !isPlayback && !libraryAccess.access.isComplete) {
+            LibraryAccessPrompt(libraryAccess, onDismiss = { accessPromptDismissed = true })
+        }
+    }
+    }
 }
 
 private const val HOME_DEFAULT_FOCUS_KEY = "spotlight"
@@ -582,7 +672,11 @@ private fun Destination.focusKey(): String? = when (this) {
     Destination.Shows -> "shows"
     Destination.MyList -> "my_list"
     Destination.Settings -> "settings"
+    Destination.Open -> "open"
+    Destination.LiveTv -> "live_tv"
     is Destination.Player -> null
+    is Destination.ExternalPlayer -> null
+    is Destination.LivePlayer -> null
 }
 
 @Composable
@@ -601,7 +695,10 @@ private fun NavContent(
     onActiveMediaChanged: (Long) -> Unit,
     onPreviewAmbientMode: () -> Unit,
     onOpenLibrary: (Destination) -> Unit,
-    onContentFocused: (String, FocusRequester) -> Unit
+    onContentFocused: (String, FocusRequester) -> Unit,
+    isScanning: Boolean = false,
+    onRescan: () -> Unit = {},
+    onPlayLive: (Destination.LivePlayer) -> Unit = {}
 ) {
     NavDisplay(
         backStack = backstack
@@ -696,9 +793,33 @@ private fun NavContent(
                         backstack.add(Destination.Settings)
                     }
                 )
-                else -> Box(modifier = Modifier.fillMaxSize()) {
-                    Text("Coming Soon", modifier = Modifier.padding(32.dp))
-                }
+                is Destination.Open -> OpenMediaScreen(
+                    isScanning = isScanning,
+                    onRescan = onRescan,
+                    onOpenLibrarySettings = { onOpenLibrary(Destination.Settings) },
+                    drawerFocusRequester = drawerFocusRequester,
+                    contentEntryFocusRequester = contentEntryFocusRequester,
+                    onContentFocused = contentFocused
+                )
+                is Destination.ExternalPlayer -> ExternalPlayerScreen(
+                    uri = destination.uri,
+                    title = destination.title,
+                    onBack = onPlayerBack
+                )
+                is Destination.LiveTv -> LiveTvScreen(
+                    viewModel = viewModel(),
+                    onPlayChannel = { channel, category ->
+                        onPlayLive(Destination.LivePlayer(channel.sourceId, category, channel.url, channel.name))
+                    },
+                    drawerFocusRequester = drawerFocusRequester,
+                    contentEntryFocusRequester = contentEntryFocusRequester,
+                    onContentFocused = contentFocused
+                )
+                is Destination.LivePlayer -> LiveChannelPlayer(
+                    destination = destination,
+                    viewModel = viewModel(),
+                    onBack = onPlayerBack
+                )
             }
         }
     }
