@@ -51,6 +51,8 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
+      # Caches Gradle downloads between runs, so builds depend less on remote repositories.
+      - uses: gradle/actions/setup-gradle@v6
       - name: Build and check Windows installer
         shell: pwsh
         run: ./scripts/build-setup.ps1
@@ -70,6 +72,8 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
+      # Caches Gradle downloads between runs, so builds depend less on remote repositories.
+      - uses: gradle/actions/setup-gradle@v6
       - uses: android-actions/setup-android@v4
       - name: Install Android SDK packages
         run: sdkmanager 'platforms;android-37.0' 'build-tools;36.0.0'
