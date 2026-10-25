@@ -3,8 +3,17 @@ package me.xdan.aperture.ui.screen.details
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.stateIn
+import me.xdan.aperture.data.discover.DiscoverDetails
+import me.xdan.aperture.data.discover.DiscoverRepository
+import me.xdan.aperture.data.discover.DiscoverType
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
 import me.xdan.aperture.data.local.entity.MediaEntity
@@ -15,11 +24,28 @@ import javax.inject.Inject
 
 @HiltViewModel
 class MediaDetailsViewModel @Inject constructor(
-    private val repository: MediaRepository
+    private val repository: MediaRepository,
+    private val discover: DiscoverRepository
 ) : ViewModel() {
 
     private val _media = MutableStateFlow<MediaEntity?>(null)
     val media: StateFlow<MediaEntity?> = _media
+
+    /**
+     * TMDB's genres, runtime and cast for the matched title. Episodes share their
+     * show's, so changing episode doesn't fetch again. Null while loading, without a
+     * match, or when TMDB can't be reached; the panel just shows less.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val extras: StateFlow<DiscoverDetails?> = _media
+        .map { media ->
+            val tmdbId = media?.tmdbId
+            if (tmdbId == null || !discover.isAvailable) null
+            else (if (media.type == "MOVIE") DiscoverType.MOVIES else DiscoverType.SHOWS) to tmdbId
+        }
+        .distinctUntilChanged()
+        .mapLatest { key -> key?.let { (type, id) -> runCatching { discover.details(type, id) }.getOrNull() } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
     private val _progress = MutableStateFlow<PlaybackProgressEntity?>(null)
     val progress: StateFlow<PlaybackProgressEntity?> = _progress
     private val _episodes = MutableStateFlow<List<MediaEntity>>(emptyList())

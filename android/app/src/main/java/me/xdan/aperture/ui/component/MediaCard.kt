@@ -35,7 +35,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import me.xdan.aperture.data.local.entity.MediaEntity
-import me.xdan.aperture.data.remote.api.TmdbApi
+import me.xdan.aperture.ui.artwork.LocalHdArtwork
+import me.xdan.aperture.ui.artwork.TmdbImageSize
 import me.xdan.aperture.ui.component.touch.touchClickable
 import me.xdan.aperture.ui.theme.ApertureTheme
 
@@ -163,7 +164,7 @@ fun MediaCard(
                 } else {
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
-                            .data(TmdbApi.IMAGE_BASE_URL + "w500" + artworkPath)
+                            .data(TmdbImageSize.POSTER.url(artworkPath, LocalHdArtwork.current))
                             .crossfade(false)
                             .build(),
                         contentDescription = fallbackTitle,

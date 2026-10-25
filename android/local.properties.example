@@ -1,5 +1,6 @@
 # Set this to your Android SDK directory (use forward slashes on Windows).
 sdk.dir=C:/Users/you/AppData/Local/Android/Sdk
-# Optional metadata and subtitle API keys.
+# Optional override of the bundled Flixvision TMDB key; blank keeps the default.
+# OpenSubtitles account features need their own application key.
 TMDB_API_KEY=
 OPENSUBTITLES_API_KEY=

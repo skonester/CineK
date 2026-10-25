@@ -5,6 +5,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowForward
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -45,6 +47,8 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import kotlinx.coroutines.delay
 import me.xdan.aperture.data.local.entity.MediaEntity
+import me.xdan.aperture.data.remoteplayback.RemoteMediaEntity
+import me.xdan.aperture.ui.screen.sources.RemoteContinueRow
 import me.xdan.aperture.domain.repository.LibraryPreparationStage
 import me.xdan.aperture.ui.component.MediaCard
 import me.xdan.aperture.ui.component.ArtworkFallback
@@ -68,10 +72,12 @@ fun HomeScreen(
     onFocusKeyChanged: (String) -> Unit,
     onContentFocused: (FocusRequester) -> Unit,
     onActiveMediaChanged: (Long) -> Unit = {},
-    onOpenLibrary: (Destination) -> Unit = {}
+    onOpenLibrary: (Destination) -> Unit = {},
+    onRemoteMediaClick: (String) -> Unit = {}
 ) {
     val state by viewModel.homeState.collectAsState()
     val roundedSpotlight by viewModel.roundedSpotlight.collectAsState()
+    val remoteContinue by viewModel.remoteContinue.collectAsState()
     val preparation by viewModel.libraryPreparation.collectAsState()
     val isScanning = preparation.stage == LibraryPreparationStage.DISCOVERING ||
         preparation.stage == LibraryPreparationStage.MATCHING
@@ -90,12 +96,13 @@ fun HomeScreen(
             }
             HomeState.Empty -> {
                 Column(
-                    modifier = Modifier.align(Alignment.Center),
+                    modifier = Modifier.align(Alignment.Center).verticalScroll(rememberScrollState()),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     val libraryAccess = LocalLibraryAccess.current
                     val access = libraryAccess.access
                     val opener = LocalMediaOpener.current
+                    RemoteContinueRow(remoteContinue, onRemoteMediaClick, drawerFocusRequester)
                     Text(
                         when {
                             isScanning -> "Scanning your library..."
@@ -136,6 +143,7 @@ fun HomeScreen(
                             }
                         ) { Text(if (access.isComplete) "Library settings" else libraryAccess.actionLabel()) }
                         OutlinedButton(onClick = opener::openFile) { Text("Open a file") }
+                        OutlinedButton(onClick = { onOpenLibrary(Destination.Discover) }) { Text("Discover movies and shows") }
                         OutlinedButton(
                             onClick = viewModel::rescan,
                             enabled = !isScanning
@@ -155,7 +163,9 @@ fun HomeScreen(
                     onContentFocused = onContentFocused,
                     onActiveMediaChanged = onActiveMediaChanged,
                     onOpenLibrary = onOpenLibrary,
-                    roundedSpotlight = roundedSpotlight
+                    roundedSpotlight = roundedSpotlight,
+                    remoteContinue = remoteContinue,
+                    onRemoteMediaClick = onRemoteMediaClick
                 )
             }
         }
@@ -175,7 +185,9 @@ private fun HomeContent(
     onContentFocused: (FocusRequester) -> Unit,
     onActiveMediaChanged: (Long) -> Unit,
     onOpenLibrary: (Destination) -> Unit,
-    roundedSpotlight: Boolean
+    roundedSpotlight: Boolean,
+    remoteContinue: List<RemoteMediaEntity>,
+    onRemoteMediaClick: (String) -> Unit
 ) {
     val listState = rememberLazyListState()
     val refreshAlpha = remember { Animatable(1f) }
@@ -196,7 +208,7 @@ private fun HomeContent(
             ?.substringBeforeLast(":")
         val restoredRowIndex = state.rows.indexOfFirst { it.title == restoredRowTitle }
         if (restoredRowIndex >= 0) {
-            listState.scrollToItem(restoredRowIndex + 1)
+            listState.scrollToItem(restoredRowIndex + 1 + if (remoteContinue.isEmpty()) 0 else 1)
         } else {
             listState.scrollToItem(0, 0)
             delay(100)
@@ -260,6 +272,9 @@ private fun HomeContent(
                 allowUnfocusedArtworkUpdates = allowUnfocusedSpotlightUpdates,
                 roundedSpotlight = roundedSpotlight
             )
+        }
+        if (remoteContinue.isNotEmpty()) item(key = "remote-continue") {
+            RemoteContinueRow(remoteContinue, onRemoteMediaClick, drawerFocusRequester)
         }
         items(state.rows, key = { it.title }) { row ->
             HomeMediaRow(

@@ -37,9 +37,15 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideTmdbApi(okHttpClient: OkHttpClient): TmdbApi {
+        // TMDB's application key is a query parameter. The shared BASIC logger
+        // would print it even with headers redacted, so omit it for this client.
+        val tmdbClient = okHttpClient.newBuilder().apply {
+            interceptors().removeAll { it is HttpLoggingInterceptor }
+            networkInterceptors().removeAll { it is HttpLoggingInterceptor }
+        }.build()
         return Retrofit.Builder()
             .baseUrl(TmdbApi.BASE_URL)
-            .client(okHttpClient)
+            .client(tmdbClient)
             .addConverterFactory(MoshiConverterFactory.create())
             .build()
             .create(TmdbApi::class.java)

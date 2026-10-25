@@ -463,7 +463,7 @@ class MediaRepositoryImpl @Inject constructor(
         val showCacheKey = normaliseTitle(lookupMedia.title).takeIf { media.type == "EPISODE" }
         val result = showCacheKey?.let(showMatchCache::get) ?: run {
             val response = searchWithRetry(lookupMedia)
-            response.results.maxByOrNull { metadataMatchScore(lookupMedia, it) }
+            (response.results.maxByOrNull { metadataMatchScore(lookupMedia, it) } ?: nearYearMatch(lookupMedia))
                 ?.also { match -> showCacheKey?.let { showMatchCache[it] = match } }
         }
         onProgress(0.75f)
@@ -488,6 +488,19 @@ class MediaRepositoryImpl @Inject constructor(
         artworkPrefetcher.prefetchBackdrop(updatedMedia.backdropPath)
         onProgress(0.95f)
         return updatedMedia
+    }
+
+    /**
+     * TMDB's year filter is exact, and files are often labelled a year off, such as a
+     * festival year against the release year. When the filtered search finds nothing,
+     * search again without the year but accept only a title within a year of it, so
+     * "Manhunter (2017)" doesn't turn into the 1986 film.
+     */
+    private suspend fun nearYearMatch(media: MediaEntity): TmdbResult? {
+        val year = media.year ?: return null
+        return searchWithRetry(media.copy(year = null)).results
+            .filter { candidate -> isNearYear(year, candidate) }
+            .maxByOrNull { metadataMatchScore(media, it) }
     }
 
     private fun mediaForMetadataLookup(media: MediaEntity): MediaEntity {
@@ -593,4 +606,10 @@ class MediaRepositoryImpl @Inject constructor(
         val NON_ALPHANUMERIC_REGEX = Regex("[^a-z0-9]+")
         val MULTIPLE_SPACES_REGEX = Regex("\\s+")
     }
+}
+
+/** Whether [candidate] came out within a year of [year]; a title with no date never is. */
+internal fun isNearYear(year: Int, candidate: TmdbResult): Boolean {
+    val candidateYear = (candidate.releaseDate ?: candidate.firstAirDate)?.take(4)?.toIntOrNull() ?: return false
+    return kotlin.math.abs(candidateYear - year) <= 1
 }

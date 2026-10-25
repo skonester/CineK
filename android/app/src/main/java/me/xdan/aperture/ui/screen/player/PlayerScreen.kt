@@ -131,8 +131,10 @@ fun PlayerScreen(
     val noticeVisible = compatibilityWarning != null || playbackFailure != null
     var pendingScrubDirection by remember { mutableIntStateOf(0) }
 
+    val upNext by viewModel.upNext.collectAsState()
+
     LaunchedEffect(mediaId) {
-        viewModel.loadMedia(mediaId, startFromBeginning)
+        viewModel.open(mediaId, startFromBeginning)
     }
 
     DisposableEffect(player) {
@@ -164,6 +166,7 @@ fun PlayerScreen(
         val listener = object : PlayerEngine.Listener {
             override fun onPlaybackStateChanged(state: Int) {
                 if (state == androidx.media3.common.Player.STATE_ENDED && !hasReturned) {
+                    if (viewModel.playNextAfterEnding()) return
                     hasReturned = true
                     viewModel.saveProgressNow(markCompleted = true)
                     onFinished()
@@ -214,6 +217,7 @@ fun PlayerScreen(
             }
             isQuickMenuVisible -> closeQuickMenu()
             isOsdVisible -> viewModel.hideOsd()
+            upNext != null -> viewModel.dismissUpNext()
             else -> {
                 if (isPlaying) player.pause()
                 viewModel.saveProgressNow()
@@ -263,7 +267,10 @@ fun PlayerScreen(
                     }
                     when (keyEvent.nativeKeyEvent.keyCode) {
                         KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
-                            if (!isOsdVisible && !isQuickMenuVisible) {
+                            if (!isOsdVisible && !isQuickMenuVisible && upNext != null) {
+                                viewModel.playNextEpisode()
+                                true
+                            } else if (!isOsdVisible && !isQuickMenuVisible) {
                                 if (isPlaying) player.pause() else player.play()
                                 viewModel.showOsdBriefly()
                                 true
@@ -326,6 +333,17 @@ fun PlayerScreen(
     }
 
         SubtitleOverlay(player = player, style = subtitleStyle)
+
+        AnimatedVisibility(
+            visible = upNext != null && !isQuickMenuVisible && !noticeVisible,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.BottomEnd).padding(end = 32.dp, bottom = if (isOsdVisible) 150.dp else 40.dp)
+        ) {
+            upNext?.let { card ->
+                UpNextCard(card, onPlayNow = { viewModel.playNextEpisode() }, onDismiss = viewModel::dismissUpNext)
+            }
+        }
 
         AnimatedVisibility(
             visible = media != null && playbackState != androidx.media3.common.Player.STATE_READY && playbackState != androidx.media3.common.Player.STATE_ENDED,

@@ -35,6 +35,8 @@ import me.xdan.aperture.data.subtitles.OpenSubtitlesSessionManager
 import me.xdan.aperture.data.subtitles.OpenSubtitlesSessionState
 import me.xdan.aperture.domain.repository.MediaRepository
 import me.xdan.aperture.domain.repository.UserPreferencesRepository
+import me.xdan.aperture.domain.model.SubtitleEncoding
+import me.xdan.aperture.ui.screen.home.episodeAfter
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
@@ -105,6 +107,19 @@ class PlayerViewModel @Inject constructor(
         PlayerSubtitleStyle()
     )
 
+    private val autoPlayNextEpisode = preferences.autoPlayNextEpisode
+        .stateIn(viewModelScope, SharingStarted.Eagerly, true)
+    private val nextEpisodePromptSeconds = preferences.nextEpisodePromptSeconds
+        .stateIn(viewModelScope, SharingStarted.Eagerly, 60)
+    private val _upNext = MutableStateFlow<UpNext?>(null)
+    /** The next episode, while the Up next card should show near the end of this one. */
+    val upNext: StateFlow<UpNext?> = _upNext
+    private var nextEpisode: MediaEntity? = null
+    private var upNextDismissed = false
+    private var upNextJob: Job? = null
+    /** The episode the player was opened for, before any played on after it. */
+    private var openedMediaId: Long? = null
+
     private var osdTimerJob: Job? = null
     private var progressTrackerJob: Job? = null
     private var activeMediaId: Long? = null
@@ -169,6 +184,20 @@ class PlayerViewModel @Inject constructor(
         _isDisplayHdrCapable.value = hdrCapabilities?.supportedHdrTypes?.isNotEmpty() == true
     }
 
+    /**
+     * Loads the title the player was opened for. If the screen is recreated after
+     * episodes played on from it, this carries on with the current episode instead.
+     */
+    fun open(mediaId: Long, startFromBeginning: Boolean = false) {
+        val current = _media.value?.id
+        if (openedMediaId == mediaId && current != null) {
+            loadMedia(current)
+        } else {
+            openedMediaId = mediaId
+            loadMedia(mediaId, startFromBeginning)
+        }
+    }
+
     fun loadMedia(mediaId: Long, startFromBeginning: Boolean = false) {
         viewModelScope.launch {
             Log.d("PlayerViewModel", "Loading media: $mediaId")
@@ -178,8 +207,14 @@ class PlayerViewModel @Inject constructor(
                 return@launch
             }
             Log.d("PlayerViewModel", "File path: ${mediaEntity.filePath}")
-            
+
             _media.value = mediaEntity
+            upNextJob?.cancel()
+            _upNext.value = null
+            upNextDismissed = false
+            nextEpisode = if (mediaEntity.type == "EPISODE") {
+                episodeAfter(repository.getEpisodesForShow(mediaEntity.title), mediaEntity)
+            } else null
             _compatibilityWarning.value = null
             _playbackFailure.value = null
             _isCurrentMediaHdr.value = false
@@ -301,8 +336,44 @@ class PlayerViewModel @Inject constructor(
 
         player.play()
         startProgressTracker(media.id)
+        startUpNextWatcher()
         resetOsdTimer()
     }
+
+    private fun startUpNextWatcher() {
+        upNextJob?.cancel()
+        upNextJob = viewModelScope.launch {
+            while (true) {
+                val next = nextEpisode
+                val promptMs = nextEpisodePromptSeconds.value * 1_000L
+                val duration = player.duration
+                val remaining = duration - player.currentPosition
+                _upNext.value = if (next != null && !upNextDismissed && promptMs > 0 && duration > 0 && remaining in 1..promptMs) {
+                    UpNext(next, remaining, autoPlayNextEpisode.value)
+                } else null
+                delay(1_000)
+            }
+        }
+    }
+
+    /** Hides the Up next card until the next title starts. */
+    fun dismissUpNext() {
+        upNextDismissed = true
+        _upNext.value = null
+    }
+
+    /** Marks this episode watched and starts the next one. Returns false when there is none. */
+    fun playNextEpisode(): Boolean {
+        val next = nextEpisode ?: return false
+        saveProgressNow(markCompleted = true)
+        upNextJob?.cancel()
+        _upNext.value = null
+        loadMedia(next.id)
+        return true
+    }
+
+    /** At the end of an episode, plays on when Settings allows it. */
+    fun playNextAfterEnding(): Boolean = autoPlayNextEpisode.value && playNextEpisode()
 
     fun adjustSubtitleDelay(deltaMs: Long) {
         setSubtitleDelay(_subtitleDelayMs.value + deltaMs)
@@ -355,8 +426,11 @@ class PlayerViewModel @Inject constructor(
         val downloadedSubtitles = downloadedSubtitleFiles.map { file ->
             SubtitleSource(Uri.fromFile(file), file.nameWithoutExtension, file.extension)
         }
-        val subtitles = (localSubtitles + downloadedSubtitles)
-            .distinctBy { it.uri }
+        val encoding = preferences.subtitleEncoding.first()
+        val readable = withContext(Dispatchers.IO) {
+            (localSubtitles + downloadedSubtitles).distinctBy { it.uri }.map { utf8Subtitle(it, encoding) }
+        }
+        val subtitles = readable
             .mapIndexed { index, subtitle ->
                 MediaItem.SubtitleConfiguration.Builder(subtitle.uri)
                     .setMimeType(subtitleMimeType(subtitle.extension))
@@ -441,6 +515,23 @@ class PlayerViewModel @Inject constructor(
         } finally {
             extractor.release()
         }
+    }
+
+    /**
+     * [source], or a UTF-8 copy of it when the subtitle encoding setting says the file
+     * uses another character set. The player reads text subtitles as UTF-8.
+     */
+    private fun utf8Subtitle(source: SubtitleSource, encoding: String): SubtitleSource {
+        if (source.extension.lowercase() !in TEXT_SUBTITLE_EXTENSIONS) return source
+        return runCatching {
+            val bytes = context.contentResolver.openInputStream(source.uri)?.use { it.readBytes() } ?: return source
+            if (bytes.size > MAX_SUBTITLE_BYTES) return source
+            val converted = SubtitleEncoding.toUtf8(bytes, encoding) ?: return source
+            val directory = File(context.cacheDir, "subtitles_utf8").apply { mkdirs() }
+            val copy = File(directory, "${source.uri.toString().hashCode().toUInt()}.${source.extension}")
+            copy.writeBytes(converted)
+            source.copy(uri = Uri.fromFile(copy))
+        }.getOrDefault(source)
     }
 
     private fun mediaPlaybackUri(location: String): Uri =
@@ -784,3 +875,9 @@ private fun inferLanguage(subtitleName: String, videoName: String): String? =
         .substringBefore('.').takeIf { it.length in 2..3 }
 
 private val SUBTITLE_EXTENSIONS = setOf("srt", "vtt", "ssa", "ass", "ttml", "dfxp", "xml")
+/** Plain text formats; the XML ones declare their own encoding. */
+private val TEXT_SUBTITLE_EXTENSIONS = setOf("srt", "vtt", "ssa", "ass")
+private const val MAX_SUBTITLE_BYTES = 8 * 1024 * 1024
+
+/** The episode after the one playing, and how long until this one ends. */
+data class UpNext(val episode: MediaEntity, val remainingMs: Long, val autoPlay: Boolean)

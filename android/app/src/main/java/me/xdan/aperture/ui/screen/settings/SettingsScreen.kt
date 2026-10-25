@@ -33,6 +33,16 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ExitToApp
+import androidx.compose.material.icons.automirrored.rounded.OpenInNew
+import androidx.compose.material.icons.rounded.AspectRatio
+import androidx.compose.material.icons.rounded.Hd
+import androidx.compose.material.icons.rounded.LiveTv
+import androidx.compose.material.icons.rounded.Schedule
+import androidx.compose.material.icons.rounded.SkipNext
+import androidx.compose.material.icons.rounded.Timer
+import androidx.compose.material.icons.rounded.Translate
+import androidx.compose.material.icons.rounded.TouchApp
 import androidx.compose.material.icons.rounded.DeleteSweep
 import androidx.compose.material.icons.rounded.DateRange
 import androidx.compose.material.icons.rounded.FolderOpen
@@ -94,6 +104,10 @@ import me.xdan.aperture.ui.theme.ApertureThemeOptions
 import me.xdan.aperture.domain.repository.MediaFolder
 import me.xdan.aperture.domain.model.AmbientBrandPlacement
 import me.xdan.aperture.domain.model.AmbientModeType
+import me.xdan.aperture.domain.model.LivePlayerApp
+import me.xdan.aperture.domain.model.StreamPictureSize
+import me.xdan.aperture.domain.model.SubtitleEncoding
+import me.xdan.aperture.ui.screen.player.installedPackage
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalTvMaterial3Api::class)
@@ -122,6 +136,14 @@ fun SettingsScreen(
     val tunnelingEnabled by viewModel.tunnelingEnabled.collectAsState()
     val softwareVideoDecoding by viewModel.softwareVideoDecoding.collectAsState()
     val playbackEngine by viewModel.playbackEngine.collectAsState()
+    val streamPlayerSettings by viewModel.streamPlayerSettings.collectAsState()
+    val autoPlayNextEpisode by viewModel.autoPlayNextEpisode.collectAsState()
+    val nextEpisodePromptSeconds by viewModel.nextEpisodePromptSeconds.collectAsState()
+    val hideContinueWatching by viewModel.hideContinueWatching.collectAsState()
+    val hdArtwork by viewModel.hdArtwork.collectAsState()
+    val subtitleEncoding by viewModel.subtitleEncoding.collectAsState()
+    var showEncodingPicker by remember { mutableStateOf(false) }
+    var showUpNextPicker by remember { mutableStateOf(false) }
     var showLicenses by remember { mutableStateOf(false) }
     var showThemes by remember { mutableStateOf(false) }
     var showOpenSubtitlesDialog by remember { mutableStateOf(false) }
@@ -346,6 +368,30 @@ fun SettingsScreen(
                         onContentFocused(requester)
                     },
                     onClick = { showSpotlightDaysPicker = true }
+                )
+            }
+
+            item {
+                SettingsToggleItem(
+                    title = "HD artwork",
+                    subtitle = if (hdArtwork) "On · Sharper posters and episode images, using more data" else "Off · Standard resolution, quicker on slow connections",
+                    icon = Icons.Rounded.Hd,
+                    checked = hdArtwork,
+                    drawerFocusRequester = drawerFocusRequester,
+                    onContentFocused = onContentFocused,
+                    onToggle = viewModel::setHdArtwork
+                )
+            }
+
+            item {
+                SettingsToggleItem(
+                    title = "Hide Continue Watching",
+                    subtitle = if (hideContinueWatching) "On · Home skips the Continue Watching row" else "Off · Home starts with what you were watching",
+                    icon = Icons.Rounded.VisibilityOff,
+                    checked = hideContinueWatching,
+                    drawerFocusRequester = drawerFocusRequester,
+                    onContentFocused = onContentFocused,
+                    onToggle = viewModel::setHideContinueWatching
                 )
             }
 
@@ -600,6 +646,133 @@ fun SettingsScreen(
             }
 
             item {
+                SettingsItem(
+                    title = "Subtitle encoding",
+                    subtitle = if (subtitleEncoding == SubtitleEncoding.AUTO) {
+                        "Automatic · UTF-8, or Western for older files. Change it if letters look garbled"
+                    } else {
+                        "${SubtitleEncoding.label(subtitleEncoding)} · For subtitle files saved next to your videos"
+                    },
+                    icon = Icons.Rounded.Translate,
+                    drawerFocusRequester = drawerFocusRequester,
+                    onFocused = { requester -> onContentFocused(requester) },
+                    onClick = { showEncodingPicker = true }
+                )
+            }
+
+            item {
+                SettingsToggleItem(
+                    title = "Play next episode automatically",
+                    subtitle = if (autoPlayNextEpisode) "On · The next episode starts when one ends" else "Off · The player closes when an episode ends",
+                    icon = Icons.Rounded.SkipNext,
+                    checked = autoPlayNextEpisode,
+                    drawerFocusRequester = drawerFocusRequester,
+                    onContentFocused = onContentFocused,
+                    onToggle = viewModel::setAutoPlayNextEpisode
+                )
+            }
+
+            item {
+                SettingsItem(
+                    title = "Up next card",
+                    subtitle = UpNextTimings.firstOrNull { it.first == nextEpisodePromptSeconds }?.second
+                        ?: "${nextEpisodePromptSeconds} seconds before the end",
+                    icon = Icons.Rounded.Timer,
+                    drawerFocusRequester = drawerFocusRequester,
+                    onFocused = { requester -> onContentFocused(requester) },
+                    onClick = { showUpNextPicker = true }
+                )
+            }
+
+            item {
+                SettingsCategoryHeader(
+                    title = "Live TV & streams",
+                    description = "The player for live channels and opened streams"
+                )
+            }
+
+            item {
+                val app = streamPlayerSettings.livePlayerApp
+                val installed = app == LivePlayerApp.CINEK || installedPackage(context, app) != null
+                SettingsItem(
+                    title = "Play live channels with",
+                    subtitle = when {
+                        app == LivePlayerApp.CINEK -> "CineK · Channel up and down, favorites and history"
+                        !installed -> "${app.label} · Not installed, so CineK plays channels instead"
+                        app == LivePlayerApp.MX_PLAYER -> "MX Player · Also gets each channel's User-Agent and Referer"
+                        else -> "${app.label} · Channels that need special headers may not play"
+                    },
+                    icon = Icons.AutoMirrored.Rounded.OpenInNew,
+                    drawerFocusRequester = drawerFocusRequester,
+                    onFocused = { requester -> onContentFocused(requester) },
+                    onClick = { viewModel.setLivePlayerApp(app.next) }
+                )
+            }
+
+            item {
+                SettingsItem(
+                    title = "Picture size",
+                    subtitle = when (streamPlayerSettings.pictureSize) {
+                        StreamPictureSize.FIT -> "Fit · Show the whole picture"
+                        StreamPictureSize.STRETCH -> "Stretch · Fill the screen, changing the shape"
+                        StreamPictureSize.ZOOM -> "Zoom · Fill the screen, cropping the edges"
+                    },
+                    icon = Icons.Rounded.AspectRatio,
+                    drawerFocusRequester = drawerFocusRequester,
+                    onFocused = { requester -> onContentFocused(requester) },
+                    onClick = { viewModel.setStreamPictureSize(streamPlayerSettings.pictureSize.next) }
+                )
+            }
+
+            item {
+                SettingsToggleItem(
+                    title = "Channel banner",
+                    subtitle = "Show the channel's logo, number and name after changing channel",
+                    icon = Icons.Rounded.LiveTv,
+                    checked = streamPlayerSettings.channelBanner,
+                    drawerFocusRequester = drawerFocusRequester,
+                    onContentFocused = onContentFocused,
+                    onToggle = viewModel::setLiveChannelBanner
+                )
+            }
+
+            item {
+                SettingsToggleItem(
+                    title = "Show clock",
+                    subtitle = "Show the time beside the title while the controls are visible",
+                    icon = Icons.Rounded.Schedule,
+                    checked = streamPlayerSettings.showClock,
+                    drawerFocusRequester = drawerFocusRequester,
+                    onContentFocused = onContentFocused,
+                    onToggle = viewModel::setStreamShowClock
+                )
+            }
+
+            item {
+                SettingsToggleItem(
+                    title = "Swipe for brightness and volume",
+                    subtitle = "On touchscreens, swipe up or down on the left for brightness and on the right for volume",
+                    icon = Icons.Rounded.TouchApp,
+                    checked = streamPlayerSettings.swipeGestures,
+                    drawerFocusRequester = drawerFocusRequester,
+                    onContentFocused = onContentFocused,
+                    onToggle = viewModel::setStreamSwipeGestures
+                )
+            }
+
+            item {
+                SettingsToggleItem(
+                    title = "Confirm before leaving live TV",
+                    subtitle = "Ask before Back stops a live channel",
+                    icon = Icons.AutoMirrored.Rounded.ExitToApp,
+                    checked = streamPlayerSettings.confirmLiveExit,
+                    drawerFocusRequester = drawerFocusRequester,
+                    onContentFocused = onContentFocused,
+                    onToggle = viewModel::setConfirmLiveExit
+                )
+            }
+
+            item {
                 SettingsCategoryHeader(
                     title = "About CineK",
                     description = "Licences and project information"
@@ -699,14 +872,31 @@ fun SettingsScreen(
             onDismiss = { showEnginePicker = false }
         )
     }
-    if (showEnginePicker) {
-        EnginePickerDialog(
-            selectedEngine = playbackEngine,
+    if (showEncodingPicker) {
+        ChoiceDialog(
+            title = "Subtitle encoding",
+            description = "The character set of subtitle files saved next to your videos. Pick the language's " +
+                "code page if accents or letters look wrong. Embedded subtitles aren't affected.",
+            options = SubtitleEncoding.options,
+            selected = subtitleEncoding,
             onSelect = {
-                viewModel.setPlaybackEngine(it)
-                showEnginePicker = false
+                viewModel.setSubtitleEncoding(it)
+                showEncodingPicker = false
             },
-            onDismiss = { showEnginePicker = false }
+            onDismiss = { showEncodingPicker = false }
+        )
+    }
+    if (showUpNextPicker) {
+        ChoiceDialog(
+            title = "Up next card",
+            description = "When the card naming the next episode appears. OK on the remote plays it straight away.",
+            options = UpNextTimings,
+            selected = nextEpisodePromptSeconds,
+            onSelect = {
+                viewModel.setNextEpisodePromptSeconds(it)
+                showUpNextPicker = false
+            },
+            onDismiss = { showUpNextPicker = false }
         )
     }
     if (showSubtitleAppearance) {
@@ -905,6 +1095,64 @@ private fun MediaFoldersDialog(
                         ) { Text("Done") }
                     }
                 }
+            }
+        }
+    }
+}
+
+private val UpNextTimings = listOf(
+    0 to "Off · Don't show it",
+    30 to "30 seconds before the end",
+    60 to "1 minute before the end",
+    120 to "2 minutes before the end",
+    180 to "3 minutes before the end",
+    300 to "5 minutes before the end"
+)
+
+/** Picks one of [options], value to label, in a scrolling list. */
+@Composable
+private fun <T> ChoiceDialog(
+    title: String,
+    description: String,
+    options: List<Pair<T, String>>,
+    selected: T,
+    onSelect: (T) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val selectedRequester = remember { FocusRequester() }
+    val selectedIndex = options.indexOfFirst { it.first == selected }.coerceAtLeast(0)
+    LaunchedEffect(Unit) { delay(80); runCatching { selectedRequester.requestFocus() } }
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(shape = ApertureTheme.shapes.dialog) {
+            Column(
+                Modifier.width(560.dp).padding(ApertureTheme.spacing.large),
+                verticalArrangement = Arrangement.spacedBy(ApertureTheme.spacing.medium)
+            ) {
+                Text(title, style = MaterialTheme.typography.headlineSmall)
+                Text(description)
+                LazyColumn(
+                    Modifier.heightIn(max = 360.dp),
+                    state = rememberLazyListState(selectedIndex),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    itemsIndexed(options) { index, (value, label) ->
+                        Surface(
+                            onClick = { onSelect(value) },
+                            modifier = Modifier.fillMaxWidth().then(
+                                if (index == selectedIndex) Modifier.focusRequester(selectedRequester) else Modifier
+                            ),
+                            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(14.dp)),
+                            colors = ClickableSurfaceDefaults.colors(
+                                containerColor = if (value == selected) {
+                                    MaterialTheme.colorScheme.primaryContainer
+                                } else MaterialTheme.colorScheme.surfaceVariant
+                            )
+                        ) {
+                            Text(label, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(16.dp))
+                        }
+                    }
+                }
+                OutlinedButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) { Text("Cancel") }
             }
         }
     }
@@ -1542,6 +1790,28 @@ private fun SettingsCategoryHeader(
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.74f)
         )
     }
+}
+
+/** A [SettingsItem] that flips a switch. */
+@Composable
+private fun SettingsToggleItem(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    checked: Boolean,
+    drawerFocusRequester: FocusRequester?,
+    onContentFocused: (FocusRequester) -> Unit,
+    onToggle: (Boolean) -> Unit
+) {
+    SettingsItem(
+        title = title,
+        subtitle = subtitle,
+        icon = icon,
+        drawerFocusRequester = drawerFocusRequester,
+        onFocused = onContentFocused,
+        onClick = { onToggle(!checked) },
+        trailingContent = { ExpressiveToggle(checked = checked, onCheckedChange = null, isFocused = false) }
+    )
 }
 
 @OptIn(ExperimentalTvMaterial3Api::class)

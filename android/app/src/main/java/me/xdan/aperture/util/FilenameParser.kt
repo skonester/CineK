@@ -28,12 +28,12 @@ object FilenameParser {
         val tvMatch = TV_SHOW_PATTERNS.firstNotNullOfOrNull { it.find(nameWithoutExtension) }
         if (tvMatch != null) {
             val filenameTitle = cleanTitle(tvMatch.groupValues[1])
-            val title = filenameTitle.ifBlank {
+            val (title, year) = splitTrailingYear(filenameTitle.ifBlank {
                 inferShowTitle(filePath) ?: "Unknown TV Show"
-            }
+            })
             val season = tvMatch.groupValues[2].toIntOrNull()
             val episode = tvMatch.groupValues[3].toIntOrNull()
-            return CleanedMediaInfo(title, null, season, episode)
+            return CleanedMediaInfo(title, year, season, episode)
         }
         
         // Try Movie match
@@ -58,6 +58,18 @@ object FilenameParser {
             .replace(Regex("\\s+"), " ")
             .trim()
     }
+
+    /**
+     * Splits a release year off the end of a show title: "Mindhunter (2017)" and
+     * "Mindhunter.2017" both name the show Mindhunter, first aired in 2017. TMDB finds
+     * no show called "Mindhunter 2017". A title that is only a year, such as 1923, keeps it.
+     */
+    private fun splitTrailingYear(title: String): Pair<String, Int?> {
+        val match = TRAILING_YEAR_REGEX.matchEntire(title) ?: return title to null
+        return match.groupValues[1].trim() to match.groupValues[2].toInt()
+    }
+
+    private val TRAILING_YEAR_REGEX = Regex("^(.*\\S)\\s+((?:19|20)\\d{2})\\s*-?$")
 
     private fun inferShowTitle(filePath: String?): String? {
         val parent = filePath?.let(::File)?.parentFile ?: return null

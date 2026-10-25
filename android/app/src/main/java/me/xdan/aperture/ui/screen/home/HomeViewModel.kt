@@ -14,6 +14,7 @@ import kotlinx.coroutines.launch
 import me.xdan.aperture.data.local.entity.MediaEntity
 import me.xdan.aperture.data.local.entity.PlaybackProgressEntity
 import me.xdan.aperture.data.artwork.ArtworkPrefetcher
+import me.xdan.aperture.data.remoteplayback.RemoteMediaRepository
 import me.xdan.aperture.domain.repository.MediaRepository
 import me.xdan.aperture.domain.repository.UserPreferencesRepository
 import kotlin.random.Random
@@ -23,7 +24,8 @@ import javax.inject.Inject
 class HomeViewModel @Inject constructor(
     private val repository: MediaRepository,
     private val userPreferencesRepository: UserPreferencesRepository,
-    private val artworkPrefetcher: ArtworkPrefetcher
+    private val artworkPrefetcher: ArtworkPrefetcher,
+    remoteMediaRepository: RemoteMediaRepository
 ) : ViewModel() {
 
     private val _homeState = MutableStateFlow<HomeState>(HomeState.Loading)
@@ -31,6 +33,9 @@ class HomeViewModel @Inject constructor(
     val roundedSpotlight = userPreferencesRepository.roundedSpotlight
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
     val libraryPreparation = repository.preparationProgress
+    val remoteContinue = combine(remoteMediaRepository.history, userPreferencesRepository.hideContinueWatching) { history, hidden ->
+        if (hidden) emptyList() else history.filter { it.canResume }.take(20)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     private val suggestionGeneration = MutableStateFlow(0)
     private var rescanJob: Job? = null
 
@@ -42,11 +47,13 @@ class HomeViewModel @Inject constructor(
                 },
                 combine(
                     userPreferencesRepository.hideFinishedFromSpotlight,
-                    userPreferencesRepository.finishedSpotlightExclusionDays
-                ) { hideFinished, exclusionDays -> hideFinished to exclusionDays },
+                    userPreferencesRepository.finishedSpotlightExclusionDays,
+                    userPreferencesRepository.hideContinueWatching,
+                    ::Triple
+                ),
                 suggestionGeneration
-            ) { (mediaList, progressList), (hideFinished, exclusionDays), generation ->
-                buildHomeState(mediaList, progressList, hideFinished, exclusionDays, generation)
+            ) { (mediaList, progressList), (hideFinished, exclusionDays, hideContinue), generation ->
+                buildHomeState(mediaList, progressList, hideFinished, exclusionDays, generation, hideContinue)
             }.collectLatest {
                 _homeState.value = it
                 if (it is HomeState.Success) {
@@ -75,7 +82,9 @@ private fun buildHomeState(
     progressList: List<PlaybackProgressEntity>,
     hideFinished: Boolean,
     exclusionDays: Int,
-    generation: Int
+    generation: Int,
+    /** Hides the row only; the last watched title still leads the Spotlight. */
+    hideContinueWatching: Boolean = false
 ): HomeState {
     if (mediaList.isEmpty()) return HomeState.Empty
 
@@ -147,7 +156,7 @@ private fun buildHomeState(
     return HomeState.Success(
         featured = featured,
         rows = buildList {
-            if (continueWatching.isNotEmpty()) add(HomeRow("Continue Watching", continueWatching))
+            if (continueWatching.isNotEmpty() && !hideContinueWatching) add(HomeRow("Continue Watching", continueWatching))
             add(
                 HomeRow(
                     "Recently Added",
@@ -185,14 +194,24 @@ private fun buildHomeState(
     )
 }
 
+/** Season, then episode, then file name; episodes missing a number go last. */
+internal val EpisodeOrder: Comparator<MediaEntity> =
+    compareBy({ it.seasonNumber ?: Int.MAX_VALUE }, { it.episodeNumber ?: Int.MAX_VALUE }, { it.filePath })
+
+/** The episode after [current] among [episodes] of one show, skipping hidden ones, or null after the last. */
+internal fun episodeAfter(episodes: List<MediaEntity>, current: MediaEntity): MediaEntity? {
+    val ordered = (episodes.filter { !it.isHidden || it.id == current.id } + current)
+        .distinctBy { it.id }
+        .sortedWith(EpisodeOrder)
+    return ordered.getOrNull(ordered.indexOfFirst { it.id == current.id } + 1)
+}
+
 /** Returns the one episode a show contributes to Continue Watching and its ordering timestamp. */
 internal fun nextEpisodeForContinueWatching(
     episodes: List<MediaEntity>,
     progressMap: Map<Long, PlaybackProgressEntity>
 ): Pair<MediaEntity, Long>? {
-    val ordered = episodes.sortedWith(
-        compareBy<MediaEntity>({ it.seasonNumber ?: Int.MAX_VALUE }, { it.episodeNumber ?: Int.MAX_VALUE }, { it.filePath })
-    )
+    val ordered = episodes.sortedWith(EpisodeOrder)
     val latestRelevant = ordered.mapNotNull { episode ->
         progressMap[episode.id]?.takeIf { it.isCompleted || it.keepInContinueWatching }
             ?.let { episode to it }

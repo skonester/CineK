@@ -12,6 +12,10 @@ val localProps = Properties().also { props ->
     val f = rootProject.file("local.properties")
     if (f.exists()) f.inputStream().use { props.load(it) }
 }
+// Application configuration from the supplied Flixvision 3.8.0 APK. No viewer account needed.
+val bundledTmdbProps = Properties().also { props ->
+    rootProject.file("tmdb-client.properties").inputStream().use { props.load(it) }
+}
 
 android {
     namespace = "me.xdan.aperture"
@@ -22,12 +26,13 @@ android {
         applicationId = "com.sasami.cinek.experimental"
         minSdk = 27
         targetSdk = 36
-        versionCode = 4
-        versionName = "1.0.2"
+        versionCode = 5
+        versionName = "1.0.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        val tmdbApiKey = localProps.getProperty("TMDB_API_KEY") ?: ""
+        val tmdbApiKey = localProps.getProperty("TMDB_API_KEY")?.takeIf { it.isNotBlank() }
+            ?: bundledTmdbProps.getProperty("TMDB_API_KEY", "")
         buildConfigField("String", "TMDB_API_KEY", "\"$tmdbApiKey\"")
         val openSubtitlesApiKey = localProps.getProperty("OPENSUBTITLES_API_KEY") ?: ""
         buildConfigField("String", "OPENSUBTITLES_API_KEY", "\"$openSubtitlesApiKey\"")
@@ -108,6 +113,7 @@ dependencies {
     implementation(libs.material)
     implementation(libs.moshi.kotlin)
     implementation(libs.okhttp)
+    implementation(libs.jsoup)
     implementation(libs.retrofit)
     testImplementation(libs.androidx.core)
     testImplementation(libs.androidx.junit)

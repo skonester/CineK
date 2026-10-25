@@ -30,6 +30,18 @@ sealed interface Destination : NavKey {
     @Serializable
     data object LiveTv : Destination
 
+    /** Browse TMDB thumbnails and find sources for a movie or selected episode. */
+    @Serializable
+    data object Discover : Destination
+
+    /** Saved Discover title; not a separate drawer category. */
+    @Serializable
+    data class Sources(val contentId: String) : Destination
+
+    /** Only stable IDs enter the saved backstack; signed media URLs and headers stay in memory. */
+    @Serializable
+    data class RemotePlayer(val contentId: String, val sessionId: String? = null, val fromBeginning: Boolean = false) : Destination
+
     @Serializable
     data class Player(
         val mediaId: Long,
@@ -58,4 +70,4 @@ sealed interface Destination : NavKey {
 
 /** Full-screen playback, which hides the drawer and holds off ambient mode. */
 val Destination.isPlayback: Boolean
-    get() = this is Destination.Player || this is Destination.ExternalPlayer || this is Destination.LivePlayer
+    get() = this is Destination.Player || this is Destination.ExternalPlayer || this is Destination.LivePlayer || this is Destination.RemotePlayer

@@ -38,6 +38,7 @@ import androidx.compose.material.icons.rounded.FileOpen
 import androidx.compose.material.icons.rounded.LiveTv
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -257,8 +258,12 @@ private fun androidx.compose.foundation.layout.RowScope.ChannelColumn(
                     )
                 }
             }
-            Text("${ui.visibleChannels.size} channels", style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Column(horizontalAlignment = Alignment.End) {
+                Text("${ui.visibleChannels.size} channels", style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Hold a channel or category to favorite it", style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.alpha(0.72f))
+            }
         }
         LazyRow(
             Modifier.padding(vertical = 10.dp),
@@ -269,10 +274,17 @@ private fun androidx.compose.foundation.layout.RowScope.ChannelColumn(
                 SelectableRow(
                     selected = name == ui.category,
                     onClick = { viewModel.selectCategory(name) },
+                    // Holding a playlist category pins it to the front.
+                    onLongClick = { viewModel.toggleFavoriteCategory(name) },
                     shape = CircleShape
                 ) {
-                    Text("$name · $count", style = MaterialTheme.typography.labelLarge,
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp))
+                    Row(Modifier.padding(horizontal = 14.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        if (name in ui.favoriteCategories) {
+                            Icon(Icons.Rounded.Star, contentDescription = "Favorite category", modifier = Modifier.size(14.dp))
+                            Spacer(Modifier.width(4.dp))
+                        }
+                        Text("$name · $count", style = MaterialTheme.typography.labelLarge)
+                    }
                 }
             }
         }
@@ -290,7 +302,11 @@ private fun androidx.compose.foundation.layout.RowScope.ChannelColumn(
             )
             else -> LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp), contentPadding = PaddingValues(bottom = 12.dp)) {
                 items(ui.visibleChannels, key = { it.url }) { channel ->
-                    ChannelRow(channel) { onPlayChannel(channel, ui.category) }
+                    ChannelRow(
+                        channel,
+                        favorite = channel.key in ui.favorites,
+                        onToggleFavorite = { viewModel.toggleFavorite(channel) }
+                    ) { onPlayChannel(channel, ui.category) }
                 }
             }
         }
@@ -298,8 +314,8 @@ private fun androidx.compose.foundation.layout.RowScope.ChannelColumn(
 }
 
 @Composable
-private fun ChannelRow(channel: LiveChannel, onClick: () -> Unit) {
-    SelectableRow(selected = false, onClick = onClick, modifier = Modifier.fillMaxWidth()) {
+private fun ChannelRow(channel: LiveChannel, favorite: Boolean, onToggleFavorite: () -> Unit, onClick: () -> Unit) {
+    SelectableRow(selected = false, onClick = onClick, onLongClick = onToggleFavorite, modifier = Modifier.fillMaxWidth()) {
         Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(
                 Modifier.size(width = 56.dp, height = 36.dp).clip(RoundedCornerShape(8.dp))
@@ -324,6 +340,10 @@ private fun ChannelRow(channel: LiveChannel, onClick: () -> Unit) {
                         overflow = TextOverflow.Ellipsis, modifier = Modifier.alpha(0.72f))
                 }
             }
+            if (favorite) {
+                Icon(Icons.Rounded.Star, contentDescription = "Favorite", modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.primary)
+            }
         }
     }
 }
@@ -334,6 +354,7 @@ private fun SelectableRow(
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onLongClick: (() -> Unit)? = null,
     shape: androidx.compose.ui.graphics.Shape = RoundedCornerShape(12.dp),
     content: @Composable () -> Unit
 ) {
@@ -341,6 +362,7 @@ private fun SelectableRow(
     Surface(
         onClick = onClick,
         modifier = modifier,
+        onLongClick = onLongClick,
         shape = ClickableSurfaceDefaults.shape(shape),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1.02f, pressedScale = 0.98f),
         colors = ClickableSurfaceDefaults.colors(

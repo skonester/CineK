@@ -12,11 +12,24 @@ import dagger.hilt.components.SingletonComponent
 import me.xdan.aperture.data.local.AppDatabase
 import me.xdan.aperture.data.local.dao.MediaDao
 import me.xdan.aperture.data.local.dao.PlaybackProgressDao
+import me.xdan.aperture.data.remoteplayback.RemoteMediaDao
 import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
+
+    val MIGRATION_7_8 = object : Migration(7, 8) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("""CREATE TABLE IF NOT EXISTS `remote_media` (
+                `contentId` TEXT NOT NULL, `title` TEXT NOT NULL, `mediaType` TEXT NOT NULL,
+                `year` INTEGER, `tmdbId` INTEGER, `imdbId` TEXT, `season` INTEGER, `episode` INTEGER,
+                `embedSite` TEXT, `embedUrl` TEXT, `lastProvider` TEXT, `lastQuality` INTEGER,
+                `positionMs` INTEGER NOT NULL, `durationMs` INTEGER NOT NULL,
+                `isCompleted` INTEGER NOT NULL, `lastUpdated` INTEGER NOT NULL,
+                PRIMARY KEY(`contentId`))""".trimIndent())
+        }
+    }
 
     private val MIGRATION_2_3 = object : Migration(2, 3) {
         override fun migrate(db: SupportSQLiteDatabase) {
@@ -82,7 +95,8 @@ object DatabaseModule {
                 MIGRATION_3_4,
                 MIGRATION_4_5,
                 MIGRATION_5_6,
-                MIGRATION_6_7
+                MIGRATION_6_7,
+                MIGRATION_7_8
             )
             .fallbackToDestructiveMigration(dropAllTables = true)
             .build()
@@ -97,4 +111,7 @@ object DatabaseModule {
     fun providePlaybackProgressDao(db: AppDatabase): PlaybackProgressDao {
         return db.playbackProgressDao()
     }
+
+    @Provides
+    fun provideRemoteMediaDao(db: AppDatabase): RemoteMediaDao = db.remoteMediaDao()
 }

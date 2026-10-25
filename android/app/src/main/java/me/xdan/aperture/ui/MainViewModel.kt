@@ -42,6 +42,12 @@ class MainViewModel @Inject constructor(
         "cinek"
     )
 
+    val hdArtwork = userPreferencesRepository.hdArtwork.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        false
+    )
+
     private val _dynamicAccentArgb = MutableStateFlow<Int?>(null)
     val dynamicAccentArgb: StateFlow<Int?> = _dynamicAccentArgb
     private val artworkAccentCache = mutableMapOf<String, Int>()

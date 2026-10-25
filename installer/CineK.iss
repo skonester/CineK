@@ -1,6 +1,6 @@
 ; Build with scripts/build-setup.ps1. Keep AppId stable across releases.
 #ifndef AppVersion
-  #define AppVersion "1.0.2"
+  #define AppVersion "1.0.3"
 #endif
 #ifndef AppSource
   #define AppSource "..\build\compose\binaries\main\app\CineK"

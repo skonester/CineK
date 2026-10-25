@@ -15,6 +15,10 @@ import kotlinx.coroutines.flow.map
 import me.xdan.aperture.domain.repository.UserPreferencesRepository
 import me.xdan.aperture.domain.model.AmbientBrandPlacement
 import me.xdan.aperture.domain.model.AmbientModeType
+import me.xdan.aperture.domain.model.LivePlayerApp
+import me.xdan.aperture.domain.model.StreamPictureSize
+import me.xdan.aperture.domain.model.StreamPlayerSettings
+import me.xdan.aperture.domain.model.SubtitleEncoding
 import javax.inject.Inject
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "user_prefs")
@@ -41,6 +45,17 @@ class UserPreferencesRepositoryImpl @Inject constructor(
     private val TUNNELING_ENABLED = booleanPreferencesKey("tunneling_enabled")
     private val SOFTWARE_VIDEO_DECODING = booleanPreferencesKey("software_video_decoding")
     private val PLAYBACK_ENGINE = stringPreferencesKey("playback_engine")
+    private val STREAM_PICTURE_SIZE = stringPreferencesKey("stream_picture_size")
+    private val STREAM_SHOW_CLOCK = booleanPreferencesKey("stream_show_clock")
+    private val LIVE_CHANNEL_BANNER = booleanPreferencesKey("live_channel_banner")
+    private val STREAM_SWIPE_GESTURES = booleanPreferencesKey("stream_swipe_gestures")
+    private val CONFIRM_LIVE_EXIT = booleanPreferencesKey("confirm_live_exit")
+    private val LIVE_PLAYER_APP = stringPreferencesKey("live_player_app")
+    private val AUTO_PLAY_NEXT_EPISODE = booleanPreferencesKey("auto_play_next_episode")
+    private val NEXT_EPISODE_PROMPT_SECONDS = intPreferencesKey("next_episode_prompt_seconds")
+    private val HIDE_CONTINUE_WATCHING = booleanPreferencesKey("hide_continue_watching")
+    private val SUBTITLE_ENCODING = stringPreferencesKey("subtitle_encoding")
+    private val HD_ARTWORK = booleanPreferencesKey("hd_artwork")
 
     override val isOnboardingCompleted: Flow<Boolean> = context.dataStore.data
         .map { preferences ->
@@ -99,6 +114,20 @@ class UserPreferencesRepositoryImpl @Inject constructor(
 
     override val playbackEngine: Flow<String> = context.dataStore.data
         .map { it[PLAYBACK_ENGINE] ?: "auto" }
+
+    override val streamPlayerSettings: Flow<StreamPlayerSettings> = context.dataStore.data
+        .map {
+            val defaults = StreamPlayerSettings()
+            StreamPlayerSettings(
+                livePlayerApp = LivePlayerApp.fromPreference(it[LIVE_PLAYER_APP]),
+                pictureSize = StreamPictureSize.fromPreference(it[STREAM_PICTURE_SIZE]),
+                showClock = it[STREAM_SHOW_CLOCK] ?: defaults.showClock,
+                channelBanner = it[LIVE_CHANNEL_BANNER] ?: defaults.channelBanner,
+                swipeGestures = it[STREAM_SWIPE_GESTURES] ?: defaults.swipeGestures,
+                confirmLiveExit = it[CONFIRM_LIVE_EXIT] ?: defaults.confirmLiveExit,
+                subtitleEncoding = it[SUBTITLE_ENCODING] ?: defaults.subtitleEncoding
+            )
+        }
 
     override suspend fun setOnboardingCompleted(completed: Boolean) {
         context.dataStore.edit { preferences ->
@@ -182,5 +211,63 @@ class UserPreferencesRepositoryImpl @Inject constructor(
 
     override suspend fun setPlaybackEngine(engine: String) {
         context.dataStore.edit { it[PLAYBACK_ENGINE] = engine }
+    }
+
+    override suspend fun setStreamPictureSize(size: StreamPictureSize) {
+        context.dataStore.edit { it[STREAM_PICTURE_SIZE] = size.preferenceValue }
+    }
+
+    override suspend fun setStreamShowClock(enabled: Boolean) {
+        context.dataStore.edit { it[STREAM_SHOW_CLOCK] = enabled }
+    }
+
+    override suspend fun setLiveChannelBanner(enabled: Boolean) {
+        context.dataStore.edit { it[LIVE_CHANNEL_BANNER] = enabled }
+    }
+
+    override suspend fun setStreamSwipeGestures(enabled: Boolean) {
+        context.dataStore.edit { it[STREAM_SWIPE_GESTURES] = enabled }
+    }
+
+    override suspend fun setConfirmLiveExit(enabled: Boolean) {
+        context.dataStore.edit { it[CONFIRM_LIVE_EXIT] = enabled }
+    }
+
+    override suspend fun setLivePlayerApp(app: LivePlayerApp) {
+        context.dataStore.edit { it[LIVE_PLAYER_APP] = app.preferenceValue }
+    }
+
+    override val autoPlayNextEpisode: Flow<Boolean> = context.dataStore.data
+        .map { it[AUTO_PLAY_NEXT_EPISODE] ?: true }
+
+    override val nextEpisodePromptSeconds: Flow<Int> = context.dataStore.data
+        .map { it[NEXT_EPISODE_PROMPT_SECONDS] ?: 60 }
+
+    override val hideContinueWatching: Flow<Boolean> = context.dataStore.data
+        .map { it[HIDE_CONTINUE_WATCHING] ?: false }
+
+    override val subtitleEncoding: Flow<String> = context.dataStore.data
+        .map { it[SUBTITLE_ENCODING] ?: SubtitleEncoding.AUTO }
+
+    override suspend fun setAutoPlayNextEpisode(enabled: Boolean) {
+        context.dataStore.edit { it[AUTO_PLAY_NEXT_EPISODE] = enabled }
+    }
+
+    override suspend fun setNextEpisodePromptSeconds(seconds: Int) {
+        context.dataStore.edit { it[NEXT_EPISODE_PROMPT_SECONDS] = seconds.coerceIn(0, 600) }
+    }
+
+    override suspend fun setHideContinueWatching(enabled: Boolean) {
+        context.dataStore.edit { it[HIDE_CONTINUE_WATCHING] = enabled }
+    }
+
+    override val hdArtwork: Flow<Boolean> = context.dataStore.data.map { it[HD_ARTWORK] ?: false }
+
+    override suspend fun setHdArtwork(enabled: Boolean) {
+        context.dataStore.edit { it[HD_ARTWORK] = enabled }
+    }
+
+    override suspend fun setSubtitleEncoding(encoding: String) {
+        context.dataStore.edit { it[SUBTITLE_ENCODING] = encoding }
     }
 }

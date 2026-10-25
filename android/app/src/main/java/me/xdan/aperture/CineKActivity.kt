@@ -20,6 +20,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.CompositionLocalProvider
+import me.xdan.aperture.ui.artwork.LocalHdArtwork
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -67,6 +69,7 @@ class MainActivity : ComponentActivity() {
             val mainViewModel: MainViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
             val themeId by mainViewModel.themeId.collectAsState()
             val dynamicAccentArgb by mainViewModel.dynamicAccentArgb.collectAsState()
+            val hdArtwork by mainViewModel.hdArtwork.collectAsState()
             var launchFinished by rememberSaveable { mutableStateOf(false) }
 
             LaunchedEffect(Unit) {
@@ -77,7 +80,7 @@ class MainActivity : ComponentActivity() {
             ApertureTheme(
                 themeId = themeId,
                 dynamicAccent = dynamicAccentArgb?.let { androidx.compose.ui.graphics.Color(it) }
-            ) {
+            ) { CompositionLocalProvider(LocalHdArtwork provides hdArtwork) {
                 Box(Modifier.fillMaxSize()) {
                     AnimatedVisibility(
                         visible = launchFinished,
@@ -151,7 +154,7 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 }
-            }
+            } }
         }
     }
 

@@ -3,6 +3,9 @@ package me.xdan.aperture.domain.repository
 import kotlinx.coroutines.flow.Flow
 import me.xdan.aperture.domain.model.AmbientBrandPlacement
 import me.xdan.aperture.domain.model.AmbientModeType
+import me.xdan.aperture.domain.model.LivePlayerApp
+import me.xdan.aperture.domain.model.StreamPictureSize
+import me.xdan.aperture.domain.model.StreamPlayerSettings
 
 interface UserPreferencesRepository {
     val isOnboardingCompleted: Flow<Boolean>
@@ -23,6 +26,15 @@ interface UserPreferencesRepository {
     val tunnelingEnabled: Flow<Boolean>
     val softwareVideoDecoding: Flow<Boolean>
     val playbackEngine: Flow<String>
+    val streamPlayerSettings: Flow<StreamPlayerSettings>
+    val autoPlayNextEpisode: Flow<Boolean>
+    /** How long before an episode ends the Up next card appears; 0 hides it. */
+    val nextEpisodePromptSeconds: Flow<Int>
+    val hideContinueWatching: Flow<Boolean>
+    /** Loads posters and stills at a higher resolution. */
+    val hdArtwork: Flow<Boolean>
+    /** A [SubtitleEncoding] value for local subtitle files. */
+    val subtitleEncoding: Flow<String>
 
     suspend fun setOnboardingCompleted(completed: Boolean)
     suspend fun setHideFinishedFromSpotlight(enabled: Boolean)
@@ -42,4 +54,15 @@ interface UserPreferencesRepository {
     suspend fun setTunnelingEnabled(enabled: Boolean)
     suspend fun setSoftwareVideoDecoding(enabled: Boolean)
     suspend fun setPlaybackEngine(engine: String)
+    suspend fun setStreamPictureSize(size: StreamPictureSize)
+    suspend fun setStreamShowClock(enabled: Boolean)
+    suspend fun setLiveChannelBanner(enabled: Boolean)
+    suspend fun setStreamSwipeGestures(enabled: Boolean)
+    suspend fun setConfirmLiveExit(enabled: Boolean)
+    suspend fun setLivePlayerApp(app: LivePlayerApp)
+    suspend fun setAutoPlayNextEpisode(enabled: Boolean)
+    suspend fun setNextEpisodePromptSeconds(seconds: Int)
+    suspend fun setHideContinueWatching(enabled: Boolean)
+    suspend fun setHdArtwork(enabled: Boolean)
+    suspend fun setSubtitleEncoding(encoding: String)
 }

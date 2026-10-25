@@ -28,7 +28,7 @@ The same APK installs on Android phones and on Android TV (Android 8.1, API 27, 
 
 - **Builds a video library.** On first launch CineK asks to see the device's videos and music, and links to Android settings if access was refused or limited. It then scans Android's media library, plus any folders you add in Settings, such as a USB drive on a TV.
   - Videos are sorted into **Movies** and **Shows**, with episodes grouped by season.
-  - With a TMDB API key, CineK adds posters, backdrops and descriptions.
+  - CineK uses Flixvision's bundled TMDB application key for posters, backdrops, descriptions and Discover. Select a Discover thumbnail to find sources; shows offer season/episode choices.
   - **Home** shows a spotlight, **Continue Watching** and suggestions. **My List** holds favorites, and **Search** finds titles.
 - **Plays them.** The player resumes where you left off. It also has:
   - **Tracks:** audio and subtitle selection, subtitle timing and appearance, and online subtitle search when OpenSubtitles is configured.
@@ -86,7 +86,7 @@ Install Inno Setup 6, then run:
 .\scripts\build-setup.ps1
 ```
 
-If the compiler is installed elsewhere, pass `-IsccPath 'C:\path\to\ISCC.exe'`. The script builds and checks the app, bundles the complete runtime, and compiles `installer/CineK.iss` into `out/setup/CineK-1.0.2-Setup.exe`.
+If the compiler is installed elsewhere, pass `-IsccPath 'C:\path\to\ISCC.exe'`. The script builds and checks the app, bundles the complete runtime, and compiles `installer/CineK.iss` into `out/setup/CineK-1.0.3-Setup.exe`.
 
 Setup supports all-users or current-user installation, a Start menu shortcut, an optional desktop shortcut, and optional audio/video associations. It registers CineK in Open with and Windows Default Apps, with the CineK icon and quoted commands that open the selected file. The final setup page can open Windows Settings to choose default media types. Existing default-app choices are preserved. Uninstall removes CineK's registrations and installed files, while retaining the user's library and preferences.
 

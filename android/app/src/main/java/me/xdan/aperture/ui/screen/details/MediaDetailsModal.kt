@@ -57,7 +57,9 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import kotlinx.coroutines.delay
 import me.xdan.aperture.data.local.entity.MediaEntity
-import me.xdan.aperture.data.remote.api.TmdbApi
+import me.xdan.aperture.ui.artwork.LocalHdArtwork
+import me.xdan.aperture.ui.screen.discover.runtimeLabel
+import me.xdan.aperture.ui.artwork.TmdbImageSize
 import me.xdan.aperture.data.remote.dto.TmdbResult
 import me.xdan.aperture.ui.component.ArtworkFallback
 import me.xdan.aperture.ui.theme.GlassBackground
@@ -77,6 +79,7 @@ fun MediaDetailsModal(
     val episodes by viewModel.episodes.collectAsState()
     val assetCandidates by viewModel.assetCandidates.collectAsState()
     val isLoadingAssets by viewModel.isLoadingAssets.collectAsState()
+    val extras by viewModel.extras.collectAsState()
     val playButtonFocusRequester = remember { FocusRequester() }
     val episodeButtonFocusRequester = remember { FocusRequester() }
     var ignoreNextPlayFocus by remember { mutableStateOf(true) }
@@ -227,7 +230,7 @@ fun MediaDetailsModal(
                                     } else {
                                         AsyncImage(
                                             model = ImageRequest.Builder(LocalContext.current)
-                                                .data(TmdbApi.IMAGE_BASE_URL + "w780" + artworkPath)
+                                                .data(TmdbImageSize.ARTWORK.url(artworkPath, LocalHdArtwork.current))
                                                 .crossfade(false)
                                                 .build(),
                                             contentDescription = null,
@@ -245,8 +248,12 @@ fun MediaDetailsModal(
                                         style = MaterialTheme.typography.headlineLarge,
                                         fontWeight = FontWeight.Bold
                                     )
+                                    // TMDB's genres and runtime join the year; an episode's own heading stays as is.
+                                    val tmdbMeta = extras?.takeIf { !episodeOnly }?.let { details ->
+                                        (details.genres.take(3) + listOfNotNull(details.runtimeMinutes?.let(::runtimeLabel)))
+                                    }.orEmpty()
                                     Text(
-                                        text = subheading,
+                                        text = (listOf(subheading).filter { it.isNotBlank() } + tmdbMeta).joinToString(" · "),
                                         style = MaterialTheme.typography.bodyLarge,
                                         color = Color.Gray
                                     )
@@ -257,6 +264,16 @@ fun MediaDetailsModal(
                                         maxLines = if (showEpisodeSelector) 2 else 4,
                                         overflow = TextOverflow.Ellipsis
                                     )
+                                    extras?.cast?.takeIf { it.isNotEmpty() }?.let { cast ->
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text(
+                                            text = "Starring " + cast.take(4).joinToString(", ") { it.name },
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = Color.Gray,
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
 
                                     Spacer(modifier = Modifier.weight(1f))
 
@@ -485,7 +502,7 @@ private fun EpisodePickerDialog(
                             ) {
                                 if (!episode.stillPath.isNullOrBlank()) {
                                     AsyncImage(
-                                        model = TmdbApi.IMAGE_BASE_URL + "w300" + episode.stillPath,
+                                        model = TmdbImageSize.STILL.url(episode.stillPath, LocalHdArtwork.current),
                                         contentDescription = null,
                                         modifier = Modifier
                                             .width(132.dp)
@@ -623,7 +640,7 @@ private fun AssetPickerDialog(
                                         )
                                     } else {
                                         AsyncImage(
-                                            model = TmdbApi.IMAGE_BASE_URL + "w342" + candidate.posterPath,
+                                            model = TmdbImageSize.POSTER_SMALL.url(candidate.posterPath, LocalHdArtwork.current),
                                             contentDescription = candidate.title ?: candidate.name,
                                             modifier = Modifier.fillMaxSize(),
                                             contentScale = ContentScale.Crop

@@ -2,6 +2,8 @@ package me.xdan.aperture.ui.navigation
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.runtime.*
@@ -28,8 +30,11 @@ import me.xdan.aperture.ui.component.LibraryAccessPrompt
 import me.xdan.aperture.ui.component.LocalLibraryAccess
 import me.xdan.aperture.ui.component.rememberLibraryAccess
 import me.xdan.aperture.ui.screen.open.OpenMediaScreen
+import me.xdan.aperture.ui.screen.sources.RemoteSourcesScreen
+import me.xdan.aperture.ui.screen.sources.RemotePlayerScreen
 import me.xdan.aperture.ui.screen.live.LiveChannelPlayer
 import me.xdan.aperture.ui.screen.live.LiveTvScreen
+import me.xdan.aperture.ui.screen.discover.DiscoverScreen
 import me.xdan.aperture.ui.screen.open.ProvideMediaOpener
 import me.xdan.aperture.ui.screen.player.ExternalPlayerScreen
 import me.xdan.aperture.ui.screen.home.HomeScreen
@@ -100,6 +105,9 @@ fun NavGraph(
     val openDrawerRequester = remember { FocusRequester() }
     val openContentEntryRequester = remember { FocusRequester() }
     val liveTvDrawerRequester = remember { FocusRequester() }
+    val discoverDrawerRequester = remember { FocusRequester() }
+    val discoverContentEntryRequester = remember { FocusRequester() }
+    val sourcesContentEntryRequester = remember { FocusRequester() }
     val liveTvContentEntryRequester = remember { FocusRequester() }
     val homeContentEntryRequester = remember { FocusRequester() }
     val searchContentEntryRequester = remember { FocusRequester() }
@@ -116,7 +124,9 @@ fun NavGraph(
             "my_list" to myListDrawerRequester,
             "settings" to settingsDrawerRequester,
             "open" to openDrawerRequester,
-            "live_tv" to liveTvDrawerRequester
+            "live_tv" to liveTvDrawerRequester,
+            "sources" to discoverDrawerRequester,
+            "discover" to discoverDrawerRequester
         )
     }
     val contentEntryRequesters = remember {
@@ -128,7 +138,9 @@ fun NavGraph(
             "my_list" to myListContentEntryRequester,
             "settings" to settingsContentEntryRequester,
             "open" to openContentEntryRequester,
-            "live_tv" to liveTvContentEntryRequester
+            "live_tv" to liveTvContentEntryRequester,
+            "sources" to sourcesContentEntryRequester,
+            "discover" to discoverContentEntryRequester
         )
     }
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
@@ -197,6 +209,8 @@ fun NavGraph(
         if (destination is Destination.LiveTv) {
             lastFocusedRequesters.remove("live_tv")
         }
+        if (destination is Destination.Sources) lastFocusedRequesters.remove("sources")
+        if (destination is Destination.Discover) lastFocusedRequesters.remove("discover")
         if (destination is Destination.Settings) {
             lastFocusedRequesters.remove("settings")
             settingsRestoreFocusKey = null
@@ -231,7 +245,10 @@ fun NavGraph(
             lastFocusedRequesters.remove(originFocusKey)
             homeRestoreFocusKey = HOME_DEFAULT_FOCUS_KEY
         }
-        pendingPlayerFocusRestore = originFocusKey
+        // Remote source lists restore their own focus, including the Discover dialog.
+        pendingPlayerFocusRestore = originFocusKey.takeUnless {
+            currentDestination is Destination.RemotePlayer && (it == "sources" || it == "discover")
+        }
         if (backstack.size > 1) backstack.removeAt(backstack.lastIndex)
     }
     LaunchedEffect(contextMediaId) {
@@ -249,6 +266,8 @@ fun NavGraph(
                 "settings" -> settingsContentEntryRequester
                 "open" -> openContentEntryRequester
                 "live_tv" -> liveTvContentEntryRequester
+                "sources" -> sourcesContentEntryRequester
+                "discover" -> discoverContentEntryRequester
                 else -> null
             }
             fallback?.let { runCatching { it.requestFocus() } }
@@ -273,6 +292,8 @@ fun NavGraph(
             "settings" -> settingsContentEntryRequester
             "open" -> openContentEntryRequester
             "live_tv" -> liveTvContentEntryRequester
+            "sources" -> sourcesContentEntryRequester
+            "discover" -> discoverContentEntryRequester
             else -> null
         }
         val restoredRememberedFocus = rememberedRequester?.let { requester ->
@@ -315,7 +336,8 @@ fun NavGraph(
                             Column(
                                 modifier = Modifier
                                     .padding(16.dp)
-                                    .fillMaxHeight(),
+                                    .fillMaxHeight()
+                                    .verticalScroll(rememberScrollState()),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             // Logo and Title
@@ -445,6 +467,13 @@ fun NavGraph(
                                 Text("Shows")
                             }
                             NavigationDrawerItem(
+                                selected = currentDestination is Destination.Discover || currentDestination is Destination.Sources,
+                                onClick = { selectDrawerDestination(Destination.Discover) },
+                                modifier = Modifier.focusRequester(discoverDrawerRequester)
+                                    .focusProperties { right = drawerReturnFocusRequester ?: discoverContentEntryRequester },
+                                leadingContent = { Icon(Icons.Rounded.Explore, contentDescription = null) }
+                            ) { Text("Discover") }
+                            NavigationDrawerItem(
                                 selected = currentDestination is Destination.MyList,
                                 onClick = { selectDrawerDestination(Destination.MyList) },
                                 modifier = Modifier
@@ -497,6 +526,10 @@ fun NavGraph(
                             playerOriginFocusKey = currentFocusKey
                             onNavigate(destination)
                         },
+                        onRemoteNavigate = { destination ->
+                            if (destination is Destination.RemotePlayer) playerOriginFocusKey = currentFocusKey
+                            onNavigate(destination)
+                        },
                         isScanning = isScanning,
                         onRescan = { mainViewModel.startLibraryPreparation(force = true) },
                         onMediaClick = { focusKey, mediaId, requester, episodeOnly ->
@@ -539,6 +572,10 @@ fun NavGraph(
                     },
                     onPlayLive = { destination ->
                         playerOriginFocusKey = currentFocusKey
+                        onNavigate(destination)
+                    },
+                    onRemoteNavigate = { destination ->
+                        if (destination is Destination.RemotePlayer) playerOriginFocusKey = currentFocusKey
                         onNavigate(destination)
                     },
                     isScanning = isScanning,
@@ -640,6 +677,8 @@ fun NavGraph(
                         "settings" -> settingsContentEntryRequester
                         "open" -> openContentEntryRequester
                         "live_tv" -> liveTvContentEntryRequester
+                        "sources" -> sourcesContentEntryRequester
+                        "discover" -> discoverContentEntryRequester
                         else -> null
                     }
                     val restored = rememberedRequester?.let { requester ->
@@ -674,9 +713,12 @@ private fun Destination.focusKey(): String? = when (this) {
     Destination.Settings -> "settings"
     Destination.Open -> "open"
     Destination.LiveTv -> "live_tv"
+    is Destination.Sources -> "sources"
+    Destination.Discover -> "discover"
     is Destination.Player -> null
     is Destination.ExternalPlayer -> null
     is Destination.LivePlayer -> null
+    is Destination.RemotePlayer -> null
 }
 
 @Composable
@@ -698,7 +740,8 @@ private fun NavContent(
     onContentFocused: (String, FocusRequester) -> Unit,
     isScanning: Boolean = false,
     onRescan: () -> Unit = {},
-    onPlayLive: (Destination.LivePlayer) -> Unit = {}
+    onPlayLive: (Destination.LivePlayer) -> Unit = {},
+    onRemoteNavigate: (Destination) -> Unit = {}
 ) {
     NavDisplay(
         backStack = backstack
@@ -733,7 +776,8 @@ private fun NavContent(
                     onFocusKeyChanged = onHomeFocusKeyChanged,
                     onContentFocused = contentFocused,
                     onActiveMediaChanged = onActiveMediaChanged,
-                    onOpenLibrary = onOpenLibrary
+                    onOpenLibrary = onOpenLibrary,
+                    onRemoteMediaClick = { id -> onRemoteNavigate(Destination.Sources(id)) }
                 )
                 is Destination.Search -> SearchScreen(
                     viewModel = viewModel(),
@@ -819,6 +863,26 @@ private fun NavContent(
                     destination = destination,
                     viewModel = viewModel(),
                     onBack = onPlayerBack
+                )
+                is Destination.Discover -> DiscoverScreen(
+                    viewModel = viewModel(),
+                    onOpenLibraryItem = mediaClick,
+                    onPlaySource = { id, session, restart -> onRemoteNavigate(Destination.RemotePlayer(id, session, restart)) },
+                    onOpenSaved = { id -> onRemoteNavigate(Destination.Sources(id)) },
+                    drawerFocusRequester = drawerFocusRequester,
+                    contentEntryFocusRequester = contentEntryFocusRequester,
+                    onContentFocused = contentFocused
+                )
+                is Destination.Sources -> RemoteSourcesScreen(
+                    contentId = destination.contentId,
+                    onPlay = { id, session, restart -> onRemoteNavigate(Destination.RemotePlayer(id, session, restart)) },
+                    drawerFocusRequester = drawerFocusRequester,
+                    contentEntryFocusRequester = contentEntryFocusRequester,
+                    onContentFocused = contentFocused
+                )
+                is Destination.RemotePlayer -> RemotePlayerScreen(
+                    contentId = destination.contentId, sessionId = destination.sessionId,
+                    fromBeginning = destination.fromBeginning, onBack = onPlayerBack
                 )
             }
         }

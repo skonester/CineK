@@ -14,9 +14,16 @@ import me.xdan.aperture.data.live.FeaturedPlaylist
 import me.xdan.aperture.data.live.LiveChannel
 import me.xdan.aperture.data.live.LiveChannelRepository
 import me.xdan.aperture.data.live.LiveChannelState
+import me.xdan.aperture.data.live.categoryKey
 import javax.inject.Inject
 
 const val ALL_CHANNELS = "All channels"
+/**
+ * Categories made from the viewer's own picks. A playlist group with the same name
+ * is shadowed by these, though its channels still appear under [ALL_CHANNELS].
+ */
+const val FAVORITE_CHANNELS = "Favorites"
+const val RECENT_CHANNELS = "Recently watched"
 
 data class LiveTvSelection(
     val sourceId: String? = null,
@@ -32,6 +39,10 @@ data class LiveTvUiState(
     val category: String = ALL_CHANNELS,
     val query: String = "",
     val visibleChannels: List<LiveChannel> = emptyList(),
+    /** [LiveChannel.key]s of favorite channels. */
+    val favorites: Set<String> = emptySet(),
+    /** The selected playlist's favorite category names. */
+    val favoriteCategories: Set<String> = emptySet(),
     val channelCounts: Map<String, Int> = emptyMap(),
     val loadingSourceId: String? = null,
     val error: String? = null,
@@ -43,10 +54,18 @@ fun buildLiveTvUi(state: LiveChannelState, selection: LiveTvSelection): LiveTvUi
     val source = state.sources.firstOrNull { it.id == selection.sourceId } ?: state.sources.firstOrNull()
     val channels = state.channels.filter { it.sourceId == source?.id }
     val groups = channels.groupingBy { it.group }.eachCount()
-    val categories = listOf(ALL_CHANNELS to channels.size) +
-        groups.entries.sortedBy { it.key.lowercase() }.map { it.key to it.value }
-    // A category from another playlist falls back to everything.
-    val category = selection.category.takeIf { it == ALL_CHANNELS || it in groups } ?: ALL_CHANNELS
+    val favorites = categoryChannels(state, channels, FAVORITE_CHANNELS).size
+    val recent = categoryChannels(state, channels, RECENT_CHANNELS).size
+    // The viewer's own categories only show once they have something in them.
+    val personal = listOf(FAVORITE_CHANNELS to favorites, RECENT_CHANNELS to recent).filter { it.second > 0 }
+    val pinned = groups.keys.filterTo(HashSet()) { source != null && categoryKey(source.id, it) in state.favoriteCategories }
+    // Favorite categories come first, then the rest, each alphabetically.
+    val categories = listOf(ALL_CHANNELS to channels.size) + personal +
+        groups.entries.filter { it.key !in PersonalCategories }
+            .sortedWith(compareBy({ it.key !in pinned }, { it.key.lowercase() }))
+            .map { it.key to it.value }
+    // A category from another playlist, or one emptied since, falls back to everything.
+    val category = selection.category.takeIf { name -> categories.any { it.first == name } } ?: ALL_CHANNELS
     val query = selection.query.trim()
     return LiveTvUiState(
         sources = state.sources,
@@ -54,10 +73,11 @@ fun buildLiveTvUi(state: LiveChannelState, selection: LiveTvSelection): LiveTvUi
         categories = categories,
         category = category,
         query = selection.query,
-        visibleChannels = channels.filter { channel ->
-            (category == ALL_CHANNELS || channel.group == category) &&
-                (query.isEmpty() || channel.name.contains(query, true) || channel.number.contains(query, true))
+        visibleChannels = categoryChannels(state, channels, category).filter { channel ->
+            query.isEmpty() || channel.name.contains(query, true) || channel.number.contains(query, true)
         },
+        favorites = state.favorites,
+        favoriteCategories = pinned,
         channelCounts = state.channels.groupingBy { it.sourceId }.eachCount(),
         loadingSourceId = state.loadingSourceId,
         error = state.error,
@@ -65,9 +85,27 @@ fun buildLiveTvUi(state: LiveChannelState, selection: LiveTvSelection): LiveTvUi
     )
 }
 
+private val PersonalCategories = setOf(FAVORITE_CHANNELS, RECENT_CHANNELS)
+
+/**
+ * [category]'s share of [channels], one playlist's worth. Favorites keep playlist
+ * order; Recently watched is newest first.
+ */
+private fun categoryChannels(state: LiveChannelState, channels: List<LiveChannel>, category: String): List<LiveChannel> =
+    when (category) {
+        ALL_CHANNELS -> channels
+        FAVORITE_CHANNELS -> channels.filter { it.key in state.favorites }
+        RECENT_CHANNELS -> {
+            // Channels sharing a key all match one history entry; show the first.
+            val byKey = channels.reversed().associateBy { it.key }
+            state.history.mapNotNull { byKey[it.key] }
+        }
+        else -> channels.filter { it.group == category }
+    }
+
 /** The channels the player can step through: the chosen playlist and category, ignoring search. */
 fun liveTvQueue(state: LiveChannelState, sourceId: String, category: String): List<LiveChannel> =
-    state.channels.filter { it.sourceId == sourceId && (category == ALL_CHANNELS || it.group == category) }
+    categoryChannels(state, state.channels.filter { it.sourceId == sourceId }, category)
 
 @HiltViewModel
 class LiveTvViewModel @Inject constructor(
@@ -104,4 +142,15 @@ class LiveTvViewModel @Inject constructor(
     }
 
     fun clearError() = repository.clearError()
+
+    fun toggleFavorite(channel: LiveChannel) = repository.toggleFavorite(channel)
+
+    /** Pins or unpins one of the selected playlist's own categories. */
+    fun toggleFavoriteCategory(category: String) {
+        if (category == ALL_CHANNELS || category in PersonalCategories) return
+        val source = ui.value.source ?: return
+        repository.toggleFavoriteCategory(source.id, category)
+    }
+
+    fun markWatched(channel: LiveChannel) = repository.markWatched(channel)
 }

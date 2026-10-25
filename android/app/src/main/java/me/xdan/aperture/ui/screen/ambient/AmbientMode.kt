@@ -60,7 +60,8 @@ import androidx.tv.material3.Text
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import kotlinx.coroutines.delay
-import me.xdan.aperture.data.remote.api.TmdbApi
+import me.xdan.aperture.ui.artwork.LocalHdArtwork
+import me.xdan.aperture.ui.artwork.TmdbImageSize
 import me.xdan.aperture.data.local.entity.MediaEntity
 import me.xdan.aperture.domain.model.AmbientBrandPlacement
 import me.xdan.aperture.domain.model.AmbientModeType
@@ -415,7 +416,7 @@ private fun AmbientPosterSlot(
                 label = "ambientPoster$index"
             ) { posterFrame ->
                 AsyncImage(
-                    model = TmdbApi.IMAGE_BASE_URL + "w500" + posterFrame.media.posterPath,
+                    model = posterFrame.media.posterPath?.let { TmdbImageSize.POSTER.url(it, LocalHdArtwork.current) },
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier

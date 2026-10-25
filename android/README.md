@@ -14,7 +14,9 @@ On launch CineK asks for access to the device's videos and music, and scans in t
 
 ## Build
 
-Install JDK 21, Android SDK platform 37.0, and build tools 36.0.0. Copy `local.properties.example` to `local.properties` and set `sdk.dir` for your machine. The TMDB and OpenSubtitles keys are optional. A TMDB key enables artwork and metadata matching; without one, local videos still appear in the library with their filename titles. OpenSubtitles account features require its API key.
+**Discover** integrates source lookup into TMDB thumbnails. Selecting a movie automatically finds sources; shows offer season/episode choices. Ridomovies, StreamingUnity and Vidsrc feed the picker, with FileMoon/Dood host resolution. Play, Resume, Start over, source refresh/switching, Home Continue Watching and Discover recent history share saved remote progress. See [source picker, playback, tests, and provider availability](SCRAPERS.md).
+
+Install JDK 21, Android SDK platform 37.0, and build tools 36.0.0. Copy `local.properties.example` to `local.properties` and set `sdk.dir` for your machine. TMDB uses Flixvision's built-in application configuration from `tmdb-client.properties` by default; a nonblank `TMDB_API_KEY` in `local.properties` overrides it. Blank or missing overrides retain the bundled key. OpenSubtitles account features require their optional API key. Local videos remain available if metadata requests fail.
 
 ```powershell
 .\gradlew.bat -p android :app:assembleDebug

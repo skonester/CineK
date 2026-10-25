@@ -15,6 +15,10 @@ import me.xdan.aperture.domain.repository.MediaRepository
 import me.xdan.aperture.domain.repository.LibraryPreparationStage
 import me.xdan.aperture.domain.repository.UserPreferencesRepository
 import me.xdan.aperture.domain.model.AmbientSettings
+import me.xdan.aperture.domain.model.LivePlayerApp
+import me.xdan.aperture.domain.model.StreamPictureSize
+import me.xdan.aperture.domain.model.StreamPlayerSettings
+import me.xdan.aperture.domain.model.SubtitleEncoding
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -85,6 +89,51 @@ class SettingsViewModel @Inject constructor(
         SharingStarted.WhileSubscribed(5_000),
         "auto"
     )
+
+    val streamPlayerSettings: StateFlow<StreamPlayerSettings> = userPreferencesRepository.streamPlayerSettings.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        StreamPlayerSettings()
+    )
+
+    fun setStreamPictureSize(size: StreamPictureSize) =
+        viewModelScope.launch { userPreferencesRepository.setStreamPictureSize(size) }
+
+    fun setStreamShowClock(enabled: Boolean) = viewModelScope.launch { userPreferencesRepository.setStreamShowClock(enabled) }
+
+    fun setLiveChannelBanner(enabled: Boolean) = viewModelScope.launch { userPreferencesRepository.setLiveChannelBanner(enabled) }
+
+    fun setStreamSwipeGestures(enabled: Boolean) =
+        viewModelScope.launch { userPreferencesRepository.setStreamSwipeGestures(enabled) }
+
+    fun setConfirmLiveExit(enabled: Boolean) = viewModelScope.launch { userPreferencesRepository.setConfirmLiveExit(enabled) }
+
+    fun setLivePlayerApp(app: LivePlayerApp) = viewModelScope.launch { userPreferencesRepository.setLivePlayerApp(app) }
+
+    val autoPlayNextEpisode = userPreferencesRepository.autoPlayNextEpisode
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+    val nextEpisodePromptSeconds = userPreferencesRepository.nextEpisodePromptSeconds
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 60)
+    val hideContinueWatching = userPreferencesRepository.hideContinueWatching
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+    val subtitleEncoding = userPreferencesRepository.subtitleEncoding
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SubtitleEncoding.AUTO)
+
+    fun setAutoPlayNextEpisode(enabled: Boolean) =
+        viewModelScope.launch { userPreferencesRepository.setAutoPlayNextEpisode(enabled) }
+
+    fun setNextEpisodePromptSeconds(seconds: Int) =
+        viewModelScope.launch { userPreferencesRepository.setNextEpisodePromptSeconds(seconds) }
+
+    val hdArtwork = userPreferencesRepository.hdArtwork
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    fun setHdArtwork(enabled: Boolean) = viewModelScope.launch { userPreferencesRepository.setHdArtwork(enabled) }
+
+    fun setHideContinueWatching(enabled: Boolean) =
+        viewModelScope.launch { userPreferencesRepository.setHideContinueWatching(enabled) }
+
+    fun setSubtitleEncoding(encoding: String) = viewModelScope.launch { userPreferencesRepository.setSubtitleEncoding(encoding) }
 
     val ambientSettings: StateFlow<AmbientSettings> = combine(
         userPreferencesRepository.ambientMode,
