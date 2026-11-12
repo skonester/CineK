@@ -106,7 +106,11 @@ class DiscoverScreenTest {
         compose.runOnIdle { assertTrue(requests.isEmpty()) }
         compose.onNodeWithTag("discover-season-2").performScrollTo().performClick()
         compose.onNodeWithTag("discover-episode-2-2").performScrollTo().performClick()
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithTag("remote-source-play-0").fetchSemanticsNodes().isNotEmpty()
+        }
         compose.onNodeWithTag("remote-source-play-0").assertExists()
+        compose.waitUntil(5_000) { requests.size == 3 }
         compose.runOnIdle {
             assertEquals(3, requests.size)
             assertTrue(requests.all { it.tmdbId == 5 && it.season == 2 && it.episode == 2 && it.type == SourceMediaType.SHOW })
