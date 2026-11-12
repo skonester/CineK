@@ -1,0 +1,56 @@
+name: Validate GraalVM desktop
+
+# Native releases stay separate until the actual executable passes playback.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-native:
+    runs-on: windows-2022
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Verify Tao and bundled VLC
+        shell: pwsh
+        run: ./gradlew.bat check desktopSmoke startupSmoke
+      - name: Build native distribution and installer
+        shell: pwsh
+        run: ./scripts/build-setup.ps1 -Runtime GraalVM
+      - name: Verify actual native executable with strict registration checks
+        shell: pwsh
+        run: ./scripts/test-desktop-distribution.ps1 -Runtime GraalVM -ApplicationPath build/compose/binaries/main/graalvm-app/CineK/CineK.exe
+      - name: Verify native audio playback
+        shell: pwsh
+        run: ./scripts/test-desktop-distribution.ps1 -Runtime GraalVM -AudioOnly -ApplicationPath build/compose/binaries/main/graalvm-app/CineK/CineK.exe
+      - name: Verify native end-of-media queue callbacks
+        shell: pwsh
+        run: ./scripts/test-desktop-distribution.ps1 -Runtime GraalVM -VerifyQueueEnd -ApplicationPath build/compose/binaries/main/graalvm-app/CineK/CineK.exe
+      - name: Verify native HTTPS live-channel download
+        shell: pwsh
+        run: ./scripts/test-native-live-channels.ps1 -ApplicationPath build/compose/binaries/main/graalvm-app/CineK/CineK.exe
+      - name: Verify native installation and file associations on the clean runner
+        shell: pwsh
+        run: ./scripts/test-setup.ps1 -Runtime GraalVM
+      - uses: actions/upload-artifact@v7
+        with:
+          name: windows-native-installer
+          path: out/setup/CineK-*-Native-Setup.exe
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: native-validation-evidence
+          path: |
+            build/distribution-smoke/
+            build/native-live-smoke/
+            build/desktop-smoke/*.png
+            build/compose/logs/
+          if-no-files-found: ignore

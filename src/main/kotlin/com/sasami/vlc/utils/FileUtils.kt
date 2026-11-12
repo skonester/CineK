@@ -51,25 +51,4 @@ object FileUtils {
         return String.format("%.2f %s", value, units[index])
     }
 
-    fun pickFile(parentFrame: java.awt.Frame? = null): String? {
-        val dialog = java.awt.FileDialog(parentFrame, "Select Media", java.awt.FileDialog.LOAD)
-        dialog.file = "*.mp4;*.mkv;*.avi;*.mp3;*.wav;*.flac;*.aac"
-        dialog.isVisible = true
-        return if (dialog.directory != null && dialog.file != null) {
-            File(dialog.directory, dialog.file).absolutePath
-        } else {
-            null
-        }
-    }
-
-    fun pickFolder(): String? {
-        val chooser = javax.swing.JFileChooser()
-        chooser.fileSelectionMode = javax.swing.JFileChooser.DIRECTORIES_ONLY
-        val result = chooser.showOpenDialog(null)
-        return if (result == javax.swing.JFileChooser.APPROVE_OPTION) {
-            chooser.selectedFile.absolutePath
-        } else {
-            null
-        }
-    }
 }

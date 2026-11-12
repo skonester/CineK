@@ -1,7 +1,14 @@
-param([string]$SetupPath)
+param([string]$SetupPath, [ValidateSet('Jvm', 'GraalVM')][string]$Runtime = 'Jvm')
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
-if (-not $SetupPath) { $SetupPath = Join-Path $repo 'out\setup\CineK-1.0.2-Setup.exe' }
+. (Join-Path $PSScriptRoot 'desktop-window.ps1')
+if (-not $SetupPath) {
+    $gradle = Get-Content -LiteralPath (Join-Path $repo 'build.gradle.kts') -Raw
+    $version = [regex]::Match($gradle, '(?m)^version = "([^"]+)"').Groups[1].Value
+    if (-not $version) { throw 'Cannot read CineK version.' }
+    $suffix = if ($Runtime -eq 'GraalVM') { '-Native' } else { '' }
+    $SetupPath = Join-Path $repo "out\setup\CineK-$version$suffix-Setup.exe"
+}
 $testRoot = Join-Path $repo 'build\installer-smoke'
 $appDir = Join-Path $testRoot 'Installed CineK'
 $configDir = Join-Path $testRoot 'config'
@@ -36,7 +43,10 @@ try {
     $installer = Start-Process -FilePath $SetupPath -ArgumentList $installArgs -PassThru -WindowStyle Hidden
     if (-not $installer.WaitForExit(60000)) { throw 'Installer timed out.' }
     if ($installer.ExitCode -ne 0) { throw "Installer returned $($installer.ExitCode)." }
-    foreach ($relative in @('CineK.exe','CineK.ico','app\resources\vlc\libvlc.dll','runtime\bin\server\jvm.dll','LICENSE.md')) {
+    $requiredFiles = @('CineK.exe','CineK.ico','LICENSE.md')
+    $requiredFiles += if ($Runtime -eq 'GraalVM') { @('vlc\libvlc.dll','vlc\libvlccore.dll','bin\skiko-windows-x64.dll','jvm.dll') }
+        else { @('app\resources\vlc\libvlc.dll','runtime\bin\server\jvm.dll') }
+    foreach ($relative in $requiredFiles) {
         if (-not (Test-Path -LiteralPath (Join-Path $appDir $relative))) { throw "Missing installed file: $relative" }
     }
     $capabilities = Get-Item 'HKCU:\Software\CineK\Capabilities\FileAssociations'
@@ -71,7 +81,8 @@ try {
     $start.RedirectStandardError = $true
     $start.RedirectStandardOutput = $true
     $start.WindowStyle = [Diagnostics.ProcessWindowStyle]::Hidden
-    $start.EnvironmentVariables['JAVA_TOOL_OPTIONS'] = '-Dcinek.configDir="' + $configDir + '"'
+    $start.EnvironmentVariables['CINEK_CONFIG_DIR'] = $configDir
+    if ($Runtime -eq 'Jvm') { $start.EnvironmentVariables['JAVA_TOOL_OPTIONS'] = '-Dcinek.configDir="' + $configDir + '"' }
     [IO.File]::WriteAllText((Join-Path $testRoot 'launch-command.txt'), $start.FileName + [Environment]::NewLine + $start.Arguments)
     $launcher = [Diagnostics.Process]::Start($start)
     $errorOutput = $launcher.StandardError.ReadToEndAsync()
@@ -80,27 +91,22 @@ try {
     $windowProcess = $null
     do {
         Start-Sleep -Milliseconds 200
-        $windowProcess = Get-Process CineK -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $exe -and $_.MainWindowHandle -ne 0 } | Select-Object -First 1
+        foreach ($candidate in (Get-Process CineK -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $exe })) {
+            $windowHandle = [CineKDesktopWindow]::FindMainWindow($candidate.Id)
+            if ($windowHandle -ne [IntPtr]::Zero) { $windowProcess = $candidate; break }
+        }
     } until ($windowProcess -or (Get-Date) -gt $deadline)
     if (-not $windowProcess) { throw 'Installed player did not open its window.' }
     Add-Type -AssemblyName System.Drawing
-    Add-Type -TypeDefinition @"
-using System;
-using System.Runtime.InteropServices;
-public static class CineKSetupWindow {
-    [StructLayout(LayoutKind.Sequential)] public struct Rect { public int Left, Top, Right, Bottom; }
-    [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hwnd, out Rect rect);
-    [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hwnd);
-    [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr hwnd, IntPtr after, int x, int y, int cx, int cy, uint flags);
-}
-"@
-    [CineKSetupWindow]::SetWindowPos($windowProcess.MainWindowHandle, [IntPtr](-1), 0, 0, 0, 0, 3) | Out-Null
-    [CineKSetupWindow]::SetForegroundWindow($windowProcess.MainWindowHandle) | Out-Null
+
+    [CineKDesktopWindow]::SetWindowPos($windowHandle, [IntPtr](-1), 0, 0, 0, 0, 3) | Out-Null
+    [CineKDesktopWindow]::SetForegroundWindow($windowHandle) | Out-Null
     $visible = $false
-    for ($attempt = 0; $attempt -lt 12 -and -not $visible; $attempt++) {
+    # A freshly extracted VLC tree may still be undergoing its first DLL/plugin scan.
+    for ($attempt = 0; $attempt -lt 60 -and -not $visible; $attempt++) {
         Start-Sleep -Milliseconds 400
-        $rect = New-Object CineKSetupWindow+Rect
-        [CineKSetupWindow]::GetWindowRect($windowProcess.MainWindowHandle, [ref]$rect) | Out-Null
+        $rect = New-Object CineKDesktopWindow+Rect
+        [CineKDesktopWindow]::GetWindowRect($windowHandle, [ref]$rect) | Out-Null
         $bitmap = New-Object Drawing.Bitmap(($rect.Right - $rect.Left), ($rect.Bottom - $rect.Top))
         $graphics = [Drawing.Graphics]::FromImage($bitmap)
         try {
@@ -120,7 +126,7 @@ public static class CineKSetupWindow {
         finally { $graphics.Dispose(); $bitmap.Dispose() }
     }
     if (-not $visible) { throw 'Installed player opened but the test video was not visible.' }
-    $windowProcess.CloseMainWindow() | Out-Null
+    [CineKDesktopWindow]::PostMessage($windowHandle, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
     if (-not $windowProcess.WaitForExit(10000)) { throw 'Installed player did not close normally.' }
     $saved = Get-Content -LiteralPath (Join-Path $configDir 'config.json') -Raw -Encoding UTF8 | ConvertFrom-Json
     if ($saved.player.playerList.path -notcontains $media) { throw 'The selected Unicode filename did not reach the installed app.' }
@@ -128,7 +134,8 @@ public static class CineKSetupWindow {
 }
 finally {
     Get-Process CineK -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $exe } | ForEach-Object {
-        $_.CloseMainWindow() | Out-Null
+        $handle = [CineKDesktopWindow]::FindMainWindow($_.Id)
+        if ($handle -ne [IntPtr]::Zero) { [CineKDesktopWindow]::PostMessage($handle, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null }
         if (-not $_.WaitForExit(5000)) { $_.Kill() }
     }
     if ($errorOutput -and $errorOutput.Wait(2000)) { [IO.File]::WriteAllText((Join-Path $testRoot 'player-stderr.log'), $errorOutput.Result) }

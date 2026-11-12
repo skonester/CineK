@@ -91,7 +91,7 @@ object LiveChannels {
         loading = source.id
         scope.launch {
             try {
-                val loaded = withContext(Dispatchers.IO) { M3uChannels.parse(read(source.location), source.id, source.location) }
+                val loaded = withContext(Dispatchers.IO) { M3uChannels.parse(readChannelPlaylist(source.location), source.id, source.location) }
                 if (loaded.isEmpty()) throw IllegalArgumentException("The playlist has no playable channels.")
                 if (sources.any { it.id == source.id }) {
                     channels = channels.filterNot { it.sourceId == source.id } + loaded
@@ -102,20 +102,22 @@ object LiveChannels {
         }
     }
 
-    private fun read(location: String): String {
-        val uri = runCatching { URI(location) }.getOrNull()
-        val input = if (uri?.scheme?.lowercase() in setOf("http", "https")) {
-            (uri!!.toURL().openConnection() as HttpURLConnection).apply {
-                connectTimeout = 10000; readTimeout = 20000; instanceFollowRedirects = true
-            }.inputStream
-        } else File(location).inputStream()
-        return input.use { stream ->
-            val bytes = stream.readNBytes(32 * 1024 * 1024 + 1)
-            if (bytes.size > 32 * 1024 * 1024) throw IllegalArgumentException("Playlist exceeds 32 MB")
-            bytes.toString(Charsets.UTF_8)
-        }
+}
+
+internal fun readChannelPlaylist(location: String): String {
+    val uri = runCatching { URI(location) }.getOrNull()
+    val input = if (uri?.scheme?.lowercase() in setOf("http", "https")) {
+        (uri!!.toURL().openConnection() as HttpURLConnection).apply {
+            connectTimeout = 10000; readTimeout = 20000; instanceFollowRedirects = true
+        }.inputStream
+    } else File(location).inputStream()
+    return input.use { stream ->
+        val bytes = stream.readNBytes(32 * 1024 * 1024 + 1)
+        if (bytes.size > 32 * 1024 * 1024) throw IllegalArgumentException("Playlist exceeds 32 MB")
+        bytes.toString(Charsets.UTF_8)
     }
 }
+
 
 object M3uChannels {
     private val attribute = Regex("([\\w-]+)\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)'|([^\\s]+))")

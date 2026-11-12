@@ -6,7 +6,9 @@ import java.awt.Frame
 import java.awt.event.WindowEvent
 import java.io.File
 import javax.sound.sampled.*
-import javax.swing.SwingUtilities
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import kotlin.concurrent.thread
 
 /** Exercises the real entry point with multiple Explorer-style file arguments. */
@@ -32,10 +34,7 @@ object StartupSmoke {
                 check(DesktopPlayback.queue == listOf(media.absolutePath, second.absolutePath))
                 check(PlayerStore.playerList.size == 2)
                 println("PASS: startup plays filenames with spaces and Unicode; multiple files enter the queue")
-                SwingUtilities.invokeAndWait {
-                    val frame = Frame.getFrames().first { it.title == "CineK" }
-                    frame.dispatchEvent(WindowEvent(frame, WindowEvent.WINDOW_CLOSING))
-                }
+                runBlocking { withContext(Dispatchers.Main) { DesktopRuntime.close!!.invoke() } }
             } catch (failure: Throwable) {
                 failure.printStackTrace()
                 kotlin.system.exitProcess(1)

@@ -15,7 +15,6 @@ import kotlin.math.roundToInt
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.WindowScope
 import com.sasami.vlc.player.DesktopPlayback
 import com.sasami.vlc.player.VlcPlayer
 import com.sasami.vlc.store.*
@@ -28,15 +27,12 @@ fun formatTime(timeMs: Long): String {
 }
 
 @Composable
-fun WindowScope.PlayerBar() {
+fun PlayerBar() {
     val active = PlayerStore.activeId.isNotEmpty()
     DisposableEffect(Unit) { onDispose { PlayerChrome.toolbarBounds = null } }
     Column(Modifier.fillMaxWidth().onGloballyPositioned { coordinates ->
         val bounds = coordinates.boundsInWindow()
-        val transform = window.graphicsConfiguration.defaultTransform
-        PlayerChrome.toolbarBounds = java.awt.Rectangle(
-            (bounds.left / transform.scaleX).roundToInt(), (bounds.top / transform.scaleY).roundToInt(),
-            (bounds.width / transform.scaleX).roundToInt(), (bounds.height / transform.scaleY).roundToInt())
+        PlayerChrome.toolbarBounds = bounds
     }.background(Theme.SurfaceLow).hairline(Edge.Top)
         .padding(horizontal = 22.dp, vertical = 8.dp)) {
         if (active) {

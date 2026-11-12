@@ -7,7 +7,9 @@ import java.awt.event.WindowEvent
 import java.io.File
 import javax.imageio.ImageIO
 import javax.sound.sampled.*
-import javax.swing.SwingUtilities
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import kotlin.concurrent.thread
 
 /** Opt-in real Windows/VLC smoke run, isolated from the user's library. */
@@ -33,19 +35,19 @@ object DesktopSmoke {
                     }
                     println("PASS: $label")
                 }
-                fun ui(action: () -> Unit) = SwingUtilities.invokeAndWait(action)
+                fun ui(action: () -> Unit) = runBlocking { withContext(Dispatchers.Main) { action() } }
                 waitFor("VLC initialized") { VlcPlayer.mediaPlayer != null }
                 check(VlcPlayer.activeVideoBackend == backend) { "Video backend selection was not applied" }
                 println("PASS: ${backend.label} backend selected")
-                val frame = Frame.getFrames().first { it.title == "CineK" }
+                val frame = NativeWindowProbe(DesktopRuntime.window!!.unsafe.taoWindow!!.nativeHandle)
                 waitFor("Window visible") { frame.isShowing && frame.width > 0 }
-                ui { frame.isAlwaysOnTop = true; frame.toFront() }
+                ui { frame.toFront() }
                 Thread.sleep(1500)
                 fun capture(name: String) {
                     ImageIO.write(Robot().createScreenCapture(Rectangle(frame.locationOnScreen, frame.size)), "png", File(output, name))
                 }
                 fun captureDarkDialog(name: String) {
-                    val dialogWindow = Window.getWindows().firstOrNull { it is Dialog && it.isShowing }
+                    val dialogWindow = NativeWindowProbe.dialog()
                         ?: error("Dialog did not open: $name")
                     val screenshot = Robot().createScreenCapture(Rectangle(dialogWindow.locationOnScreen, dialogWindow.size))
                     ImageIO.write(screenshot, "png", File(output, name))
@@ -74,7 +76,7 @@ object DesktopSmoke {
                 capture("library-populated.png")
                 ui { DesktopPlayback.play(item, listOf(item), fromStart = true) }
                 waitFor("Native media plays") { PlayerStore.isPlaying && PlayerStore.currentTime > 500 }
-                val surface = VlcPlayer.mediaPlayerComponent
+                val surface = VlcPlayer.mediaPlayer
                 ui { DesktopPlayback.seek(10000) }
                 waitFor("Seek reaches target") { PlayerStore.currentTime >= 9000 }
                 ui { DesktopPlayback.speed(1.5f) }
@@ -82,8 +84,8 @@ object DesktopSmoke {
                 println("PASS: playback rate")
                 ui { LibraryStore.showLibrary = true }
                 Thread.sleep(600)
-                check(VlcPlayer.mediaPlayerComponent === surface)
-                check(VlcPlayer.mediaPlayerComponent!!.videoSurfaceComponent().isDisplayable)
+                check(VlcPlayer.mediaPlayer === surface)
+                check(NativeWindowProbe(VlcPlayer.surfaceHandle).isDisplayable)
                 check(PlayerStore.isPlaying)
                 println("PASS: library navigation preserves native surface and playback")
                 ui { LibraryStore.showLibrary = false; PlayerStore.isPlayListCollapsed = false }
@@ -110,15 +112,15 @@ object DesktopSmoke {
                 waitFor("Native video renders") { VlcPlayer.mediaPlayer!!.video().videoDimension()?.width == 320 }
                 waitFor("Video clock advances") { PlayerStore.isPlaying && PlayerStore.currentTime > 600 }
                 capture("video.png")
-                val nativeHandle = com.sun.jna.Native.getComponentID(VlcPlayer.mediaPlayerComponent!!.videoSurfaceComponent())
+                val nativeHandle = VlcPlayer.surfaceHandle
                 val snapshot = File(output, "native-frame.png")
                 check(VlcPlayer.mediaPlayer!!.snapshots().save(snapshot))
                 waitFor("Video snapshot saved") { snapshot.isFile && snapshot.length() > 0 }
                 check(ImageIO.read(snapshot).width == 320)
                 ui { LibraryStore.showLibrary = true }
                 Thread.sleep(400)
-                check(VlcPlayer.mediaPlayerComponent === surface && PlayerStore.isPlaying)
-                val previewCanvas = VlcPlayer.mediaPlayerComponent!!.videoSurfaceComponent()
+                check(VlcPlayer.mediaPlayer === surface && PlayerStore.isPlaying)
+                val previewCanvas = NativeWindowProbe(VlcPlayer.surfaceHandle)
                 waitFor("Library preview has a bounded 16:9 viewport") {
                     previewCanvas.width in 250..330 && kotlin.math.abs(previewCanvas.width.toDouble() / previewCanvas.height - 16.0 / 9.0) < 0.05
                 }
@@ -138,8 +140,8 @@ object DesktopSmoke {
                 waitFor("Video paused for window transition checks") { !PlayerStore.isPlaying }
                 Thread.sleep(500)
                 fun assertVideoVisible(name: String) {
-                    val canvas = VlcPlayer.mediaPlayerComponent!!.videoSurfaceComponent()
-                    check(com.sun.jna.Native.getComponentID(canvas) == nativeHandle) { "Native video handle changed: $name" }
+                    val canvas = NativeWindowProbe(VlcPlayer.surfaceHandle)
+                    check(canvas.handle == nativeHandle) { "Native video handle changed: $name" }
                     capture("window-$name")
                     var rendered = false
                     var screen: java.awt.image.BufferedImage? = null
@@ -192,7 +194,7 @@ object DesktopSmoke {
                 waitFor("Fullscreen controls hide after idle", 6000) { !com.sasami.vlc.ui.PlayerChrome.visible }
                 waitFor("Hidden controls release the whole video viewport") {
                     com.sasami.vlc.ui.PlayerChrome.toolbarBounds == null &&
-                        VlcPlayer.mediaPlayerComponent!!.videoSurfaceComponent().height == frame.height
+                        NativeWindowProbe(VlcPlayer.surfaceHandle).height == frame.height
                 }
                 assertVideoVisible("fullscreen-controls-hidden.png")
                 robot.mouseMove(frame.x + frame.width / 2 + 30, frame.y + frame.height / 2)
@@ -200,7 +202,7 @@ object DesktopSmoke {
                     com.sasami.vlc.ui.PlayerChrome.visible && com.sasami.vlc.ui.PlayerChrome.toolbarBounds != null
                 }
                 val toolbar = com.sasami.vlc.ui.PlayerChrome.toolbarBounds!!
-                robot.mouseMove(frame.x + toolbar.x + 20, frame.y + toolbar.y + toolbar.height - 25)
+                robot.mouseMove(frame.x + toolbar.left.toInt() + 20, frame.y + toolbar.bottom.toInt() - 25)
                 Thread.sleep(com.sasami.vlc.ui.PlayerChrome.IDLE_MILLIS + 400)
                 check(com.sasami.vlc.ui.PlayerChrome.visible) { "Controls hid while the pointer was over them" }
                 println("PASS: toolbar hover prevents hiding")
@@ -211,11 +213,8 @@ object DesktopSmoke {
                 robot.mouseRelease(java.awt.event.InputEvent.BUTTON1_DOWN_MASK)
                 println("PASS: mouse drag prevents hiding")
                 waitFor("Controls hide again after interaction", 6000) { !com.sasami.vlc.ui.PlayerChrome.visible }
-                ui {
-                    KeyboardFocusManager.getCurrentKeyboardFocusManager().dispatchEvent(
-                        java.awt.event.KeyEvent(frame, java.awt.event.KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0,
-                            java.awt.event.KeyEvent.VK_M, 'm'))
-                }
+                robot.keyPress(java.awt.event.KeyEvent.VK_M)
+                robot.keyRelease(java.awt.event.KeyEvent.VK_M)
                 waitFor("Keyboard input restores controls") { com.sasami.vlc.ui.PlayerChrome.visible }
                 ui { LibraryStore.dialog = "playback" }
                 Thread.sleep(500)
@@ -243,7 +242,7 @@ object DesktopSmoke {
                 ui { LibraryStore.repeat = "off"; DesktopPlayback.seek(9500) }
                 waitFor("Queue stops at end with repeat off") { PlayerStore.activeId.isEmpty() }
                 println("PASS: desktop smoke complete")
-                ui { frame.dispatchEvent(WindowEvent(frame, WindowEvent.WINDOW_CLOSING)) }
+                ui { DesktopRuntime.close!!.invoke() }
             } catch (error: Throwable) {
                 error.printStackTrace()
                 kotlin.system.exitProcess(1)

@@ -4,7 +4,7 @@
 
 CineK is a media player for your own videos, music and live TV. It comes as two apps with the same name, logo and gold-on-charcoal look:
 
-- **CineK for Windows** is a desktop player built with Compose Desktop and VLC. It plays almost any file or stream and keeps a library of your videos and music.
+- **CineK for Windows** is a desktop player built with Nucleus, Compose Desktop and VLC. It plays almost any file or stream and keeps a library of your videos and music.
 - **CineK for Android** is a single APK for **phones and Android TV**. It builds a movie-and-show library from the videos on the device and plays them with Media3. It also opens individual files and streams, and plays live TV.
 
 Each push to `main` publishes both as a GitHub pre-release; see [Automated builds](#automated-builds).
@@ -20,7 +20,7 @@ Each push to `main` publishes both as a GitHub pre-release; see [Automated build
   - **Video:** playback speed, aspect ratio, chapters, frame-by-frame stepping and snapshots.
   - **Playback:** a sleep timer, shuffle and repeat.
 - **Fullscreen.** The controls hide when the mouse is idle and come back when you move it. Keyboard shortcuts cover play and pause, seeking, volume, fullscreen, next and previous, and more; they're listed in Settings.
-- **Starts quickly.** The CineK logo shows as a splash screen while Java and VLC load.
+- **Starts quickly.** The CineK logo and loading indicator appear while the library and VLC initialize.
 
 ## What the Android app does
 
@@ -69,14 +69,45 @@ Use the slider icon in the title bar to select **Automatic**, **Direct3D 11**, *
 
 ## Build and run
 
-Requires JDK 17 or newer with `JAVA_HOME` set. The Gradle wrapper is included. Windows VLC binaries and plugins are in `resources/common/vlc/`; keep this complete runtime together.
+Requires JDK 21 with `JAVA_HOME` set. The Gradle wrapper is included. Windows VLC binaries and plugins are in `resources/common/vlc/`; keep this complete runtime together.
 
 ```powershell
 .\gradlew.bat run
 .\gradlew.bat check createDistributable
 ```
 
-Launch `build/compose/binaries/main/app/CineK/CineK.exe`. The CineK logo appears as a splash screen as soon as it starts: the launcher draws `resources/common/splash.png` (with `@125pct`–`@2x` versions for scaled displays) before Java loads, and the main window stays hidden until the library and VLC are ready, at least 1.5 seconds after launch (`StartupSplash.MINIMUM_MILLIS`). The adjacent `app` and `runtime` folders are required; Java and VLC do not need to be installed separately on the destination computer.
+Launch `build/compose/binaries/main/app/CineK/CineK.exe`. Nucleus owns the Tao window and UI dispatcher; VLC renders into a native child window. File dialogs use FileKit. Keep the complete distribution together, including `app` and `runtime`; Java and VLC do not need to be installed separately on the destination computer. The loading screen is drawn by Compose and works with both runtime targets.
+
+### GraalVM Native Image target
+
+The desktop build pins Nucleus `3.0.0-dev-202611061347`, Kotlin `2.4.20`, Compose `1.12.1`, and GraalVM Community `25.0.2`. Nucleus automatically downloads the GraalVM toolchain; `GRAALVM_HOME` can select an existing installation. On Windows, native compilation also requires Visual Studio 2022 17.6+ Build Tools with **Desktop development with C++** and a Windows SDK. Use an x64 Native Tools prompt if native-image cannot discover the compiler.
+
+```powershell
+.\gradlew.bat check desktopSmoke startupSmoke
+.\gradlew.bat createGraalvmNativeDistributable
+.\scripts\test-desktop-distribution.ps1 -Runtime GraalVM -ApplicationPath build/compose/binaries/main/graalvm-app/CineK/CineK.exe
+.\scripts\build-setup.ps1 -Runtime GraalVM
+```
+
+The native distribution goes to `build/compose/binaries/main/graalvm-app/CineK/`, and its installer is `out/setup/CineK-1.0.4-Native-Setup.exe`. Keep the executable, `vlc/`, `bin/`, and all generated native sidecars together. Native Image still needs VLC, Skiko and the Nucleus runtime libraries beside the executable. Nucleus bundles the MSVC runtime from the build toolchain for distribution.
+
+The manual **Validate GraalVM desktop** GitHub Actions workflow builds and exercises the native executable, then checks the installer on a clean Windows runner. Native publishing remains separate from the existing automatic JVM installer release until these checks pass. The local migration passed JVM behavior, playback, fullscreen and startup checks. The Windows native image now also builds with MSVC 14.44 and passes packaged audio/video playback, Unicode multi-file startup, persistence, clean exit and HTTPS playlist download checks; see [gameplan.md](gameplan.md) for evidence and remaining validation.
+
+VLC/JNA reachability metadata was captured from real playback with the GraalVM tracing agent. To refresh it, set `GRAALVM_HOME`, run `desktopSmoke startupSmoke -PtraceNative=true`, then `python scripts/update-native-metadata.py`. Raw traces stay in `build/native-agent/`. The native verification scripts exit on missing registrations. Native builds include Windows code-page charsets for JNA and enable HTTP/HTTPS URL handlers for live-channel downloads. Broader codec, stream playback, subtitle and device coverage still needs verification in the compiled native executable.
+
+Verify the production live-channel downloader and parser inside the native executable, including TLS with Nucleus's packaged `java.home` setting:
+
+```powershell
+.\scripts\test-native-live-channels.ps1 -ApplicationPath build/compose/binaries/main/graalvm-app/CineK/CineK.exe
+```
+
+`-AudioOnly` on `test-desktop-distribution.ps1` checks the WAV fixture and saved playback progress. `build-setup.ps1 -DesktopOutputDir build/native-verified` uses a separate distribution directory when the normal development executable is open.
+
+Tests use `cinek.configDir` or `CINEK_CONFIG_DIR` to isolate data from `%APPDATA%\CineK`. To check a JVM package independently of its working directory, run:
+
+```powershell
+.\scripts\test-desktop-distribution.ps1 -Runtime Jvm -ApplicationPath build/compose/binaries/main/app/CineK/CineK.exe
+```
 
 ## Windows setup
 
@@ -86,7 +117,7 @@ Install Inno Setup 6, then run:
 .\scripts\build-setup.ps1
 ```
 
-If the compiler is installed elsewhere, pass `-IsccPath 'C:\path\to\ISCC.exe'`. The script builds and checks the app, bundles the complete runtime, and compiles `installer/CineK.iss` into `out/setup/CineK-1.0.3-Setup.exe`.
+If the compiler is installed elsewhere, pass `-IsccPath 'C:\path\to\ISCC.exe'`. The script builds and checks the app, bundles the complete runtime, and compiles `installer/CineK.iss` into `out/setup/CineK-1.0.4-Setup.exe`.
 
 Setup supports all-users or current-user installation, a Start menu shortcut, an optional desktop shortcut, and optional audio/video associations. It registers CineK in Open with and Windows Default Apps, with the CineK icon and quoted commands that open the selected file. The final setup page can open Windows Settings to choose default media types. Existing default-app choices are preserved. Uninstall removes CineK's registrations and installed files, while retaining the user's library and preferences.
 

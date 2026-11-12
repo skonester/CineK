@@ -18,7 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.WindowScope
+import dev.nucleusframework.application.LocalNucleusWindow
 import com.sasami.vlc.store.PlayerStore
 import com.sasami.vlc.store.LibraryStore
 import com.sasami.vlc.player.VlcPlayer
@@ -26,11 +26,10 @@ import com.sasami.vlc.player.DesktopPlayback
 import com.sasami.vlc.theme.Theme
 import com.sasami.vlc.utils.I18n
 import java.io.File
-import javax.swing.JFrame
 
 @Composable
-fun WindowScope.TitleBar(onClose: () -> Unit) {
-    val jFrame = (window as? JFrame)
+fun TitleBar(onClose: () -> Unit) {
+    val nativeWindow = LocalNucleusWindow.current
     var showBackendMenu by remember { mutableStateOf(false) }
 
     val displayTitle = remember(PlayerStore.activeId, PlayerStore.playerList) {
@@ -49,21 +48,10 @@ fun WindowScope.TitleBar(onClose: () -> Unit) {
             .height(42.dp)
             .background(Theme.SurfaceBar)
             .hairline(Edge.Bottom)
-            .pointerInput(Unit) {
-                if (jFrame != null) {
-                    awaitEachGesture {
-                        val down = awaitFirstDown()
-                        val startPoint = java.awt.MouseInfo.getPointerInfo().location
-                        val startLoc = jFrame.location
-                        drag(down.id) { change ->
-                            change.consume()
-                            val currentPoint = java.awt.MouseInfo.getPointerInfo().location
-                            jFrame.setLocation(
-                                startLoc.x + (currentPoint.x - startPoint.x),
-                                startLoc.y + (currentPoint.y - startPoint.y)
-                            )
-                        }
-                    }
+            .pointerInput(nativeWindow) {
+                awaitEachGesture {
+                    awaitFirstDown()
+                    nativeWindow.unsafe.taoWindow?.dragWindow()
                 }
             }
             .padding(horizontal = 12.dp),
@@ -142,7 +130,7 @@ fun WindowScope.TitleBar(onClose: () -> Unit) {
 
             // Minimize Button (using Remove icon)
             IconButton(
-                onClick = { jFrame?.extendedState = JFrame.ICONIFIED },
+                onClick = { nativeWindow.setMinimized(true) },
                 modifier = Modifier.size(28.dp)
             ) {
                 Icon(
@@ -156,13 +144,7 @@ fun WindowScope.TitleBar(onClose: () -> Unit) {
             // Maximize Button
             IconButton(
                 onClick = {
-                    jFrame?.let {
-                        if (it.extendedState == JFrame.MAXIMIZED_BOTH) {
-                            it.extendedState = JFrame.NORMAL
-                        } else {
-                            it.extendedState = JFrame.MAXIMIZED_BOTH
-                        }
-                    }
+                    nativeWindow.setMaximized(!nativeWindow.isMaximized)
                 },
                 modifier = Modifier.size(28.dp)
             ) {

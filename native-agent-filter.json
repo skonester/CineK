@@ -1,0 +1,8 @@
+{
+  "rules": [
+    { "excludeClasses": "**" },
+    { "includeClasses": "com.sasami.vlc.**" },
+    { "includeClasses": "uk.co.caprica.vlcj.**" },
+    { "includeClasses": "com.sun.jna.**" }
+  ]
+}

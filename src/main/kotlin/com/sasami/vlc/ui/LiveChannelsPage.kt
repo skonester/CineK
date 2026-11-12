@@ -18,8 +18,7 @@ import androidx.compose.ui.unit.sp
 import com.sasami.vlc.player.DesktopPlayback
 import com.sasami.vlc.store.*
 import com.sasami.vlc.theme.Theme
-import javax.swing.JFileChooser
-import javax.swing.filechooser.FileNameExtensionFilter
+import com.sasami.vlc.utils.DesktopFiles
 
 @Composable
 fun LiveChannelsPage() {
@@ -45,9 +44,8 @@ fun LiveChannelsPage() {
                 Text("Browse M3U playlists and watch live TV", color = Theme.TextSecondary, fontSize = 12.sp)
             }
             OutlinedButton(onClick = {
-                val chooser = JFileChooser().apply { fileFilter = FileNameExtensionFilter("M3U playlists", "m3u", "m3u8") }
-                if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
-                    val file = chooser.selectedFile
+                DesktopFiles.open(setOf("m3u", "m3u8")) { files ->
+                    val file = files.first()
                     LiveChannels.add(file.nameWithoutExtension, file.absolutePath)
                     selected = LiveChannels.sources.lastOrNull()?.id
                 }

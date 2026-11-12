@@ -446,7 +446,7 @@ private fun MediaCard(item: PlayerItem, grid: Boolean, onPlay: () -> Unit) {
                             }) { Text("Remove from playlist") }
                             if (item.type != "stream") DropdownMenuItem({
                                 menu = false
-                                try { java.awt.Desktop.getDesktop().open(File(item.path).parentFile) }
+                                try { ProcessBuilder("explorer.exe", File(item.path).absoluteFile.parent).start() }
                                 catch (_: Exception) { LibraryStore.message = "This folder is no longer available." }
                             }) { Text("Open containing folder") }
                             DropdownMenuItem({ menu = false; DesktopPlayback.remove(item) }) { Text("Remove from library", color = Theme.Danger) }

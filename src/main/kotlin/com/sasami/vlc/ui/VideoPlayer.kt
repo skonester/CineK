@@ -8,7 +8,9 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.awt.SwingPanel
+import dev.nucleusframework.window.tao.NativeView
+import dev.nucleusframework.application.LocalNucleusWindow
+import com.sasami.vlc.player.WindowsVlcView
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -22,6 +24,7 @@ import com.sasami.vlc.theme.Theme
 
 @Composable
 fun VideoPlayerContent(modifier: Modifier = Modifier) {
+    val owner = LocalNucleusWindow.current
     Row(modifier.fillMaxSize().background(Theme.Bg)) {
         if (!LibraryStore.fullscreen && LibraryStore.showLibrary) LibraryNavigation()
         Column(Modifier.weight(1f).fillMaxHeight()) {
@@ -53,9 +56,9 @@ fun VideoPlayerContent(modifier: Modifier = Modifier) {
                     Row(Modifier.fillMaxSize().background(Theme.SurfaceLow)) {
                         Box(if (showVideo) Modifier.weight(1f).fillMaxHeight()
                             else Modifier.width(288.dp).fillMaxHeight()) {
-                            VlcPlayer.mediaPlayerComponent?.let { component ->
-                                val surfaceFactory = remember(component) { { component } }
-                                SwingPanel(factory = surfaceFactory, background = Color.Black, modifier = Modifier.fillMaxSize())
+                            VlcPlayer.mediaPlayer?.let {
+                                NativeView(factory = { WindowsVlcView.create(owner.unsafe.taoWindow!!.nativeHandle) },
+                                    modifier = Modifier.fillMaxSize())
                             } ?: Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
                                 Text("VLC is unavailable", color = Theme.TextPrimary)
                             }

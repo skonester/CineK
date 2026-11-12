@@ -8,7 +8,7 @@ import uk.co.caprica.vlcj.player.base.MediaPlayer
 import uk.co.caprica.vlcj.player.base.MediaPlayerEventAdapter
 import java.io.File
 import java.net.URI
-import javax.swing.SwingUtilities
+import com.sasami.vlc.utils.DesktopFiles
 
 /** Desktop features use the existing VLC instance; native discovery and surface ownership stay in VlcPlayer. */
 object DesktopPlayback {
@@ -26,7 +26,7 @@ object DesktopPlayback {
         attached = player
         player.events().addMediaPlayerEventListener(object : MediaPlayerEventAdapter() {
             override fun playing(mediaPlayer: MediaPlayer) {
-                SwingUtilities.invokeLater {
+                scope.launch {
                     error = null
                     val position = pendingResume
                     pendingResume = 0
@@ -36,7 +36,7 @@ object DesktopPlayback {
                 }
             }
             override fun error(mediaPlayer: MediaPlayer) {
-                SwingUtilities.invokeLater {
+                scope.launch {
                     error = "This media could not be opened. Check the file or stream address."
                     PlayerStore.isPlaying = false
                 }
@@ -177,16 +177,8 @@ object DesktopPlayback {
         }
     }
 
-    fun openFiles() {
-        val chooser = javax.swing.JFileChooser().apply {
-            isMultiSelectionEnabled = true
-            fileFilter = javax.swing.filechooser.FileNameExtensionFilter("Media files", *FileUtils.mediaExtensions.toTypedArray())
-        }
-        if (chooser.showOpenDialog(null) == javax.swing.JFileChooser.APPROVE_OPTION)
-            importFiles(chooser.selectedFiles.toList(), true)
-    }
-
-    fun openFolder() { FileUtils.pickFolder()?.let { importFiles(listOf(File(it))) } }
+    fun openFiles() = DesktopFiles.open(FileUtils.mediaExtensions, multiple = true) { importFiles(it, true) }
+    fun openFolder() = DesktopFiles.folder { importFiles(listOf(it)) }
 
     fun stream(address: String): String? {
         val uri = try { URI(address.trim()) } catch (_: Exception) { return "Enter a valid stream URL." }
@@ -198,22 +190,12 @@ object DesktopPlayback {
         return null
     }
 
-    fun subtitles() {
-        val chooser = javax.swing.JFileChooser().apply {
-            fileFilter = javax.swing.filechooser.FileNameExtensionFilter("Subtitles", "srt", "ass", "ssa", "vtt", "sub")
-        }
-        if (chooser.showOpenDialog(null) == javax.swing.JFileChooser.APPROVE_OPTION) {
-            val ok = VlcPlayer.mediaPlayer?.subpictures()?.setSubTitleFile(chooser.selectedFile) == true
-            LibraryStore.message = if (ok) "Subtitle loaded" else "Could not load that subtitle file."
-        }
+    fun subtitles() = DesktopFiles.open(setOf("srt", "ass", "ssa", "vtt", "sub")) { files ->
+        val ok = VlcPlayer.mediaPlayer?.subpictures()?.setSubTitleFile(files.first()) == true
+        LibraryStore.message = if (ok) "Subtitle loaded" else "Could not load that subtitle file."
     }
 
-    fun snapshot() {
-        val chooser = javax.swing.JFileChooser().apply { selectedFile = File("CineK-${System.currentTimeMillis()}.png") }
-        if (chooser.showSaveDialog(null) != javax.swing.JFileChooser.APPROVE_OPTION) return
-        val target = chooser.selectedFile.let { if (it.extension.equals("png", true)) it else File(it.path + ".png") }
-        if (target.exists() && javax.swing.JOptionPane.showConfirmDialog(null, "Replace ${target.name}?", "Save snapshot",
-                javax.swing.JOptionPane.YES_NO_OPTION) != javax.swing.JOptionPane.YES_OPTION) return
+    fun snapshot() = DesktopFiles.save("CineK-${System.currentTimeMillis()}", "png") { target ->
         val ok = VlcPlayer.mediaPlayer?.snapshots()?.save(target) == true
         LibraryStore.message = if (ok) "Snapshot saved to ${target.name}" else "No video frame is available."
     }

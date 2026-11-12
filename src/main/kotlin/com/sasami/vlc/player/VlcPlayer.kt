@@ -6,10 +6,10 @@ import com.sun.jna.Native
 import com.sun.jna.NativeLibrary
 import com.sun.jna.Library
 import com.sun.jna.Pointer
+import com.sun.jna.WString
 import com.sun.jna.Memory
 import com.sun.jna.win32.StdCallLibrary
 import uk.co.caprica.vlcj.factory.MediaPlayerFactory
-import uk.co.caprica.vlcj.player.component.EmbeddedMediaPlayerComponent
 import uk.co.caprica.vlcj.player.embedded.EmbeddedMediaPlayer
 import uk.co.caprica.vlcj.player.base.MediaPlayer
 import uk.co.caprica.vlcj.player.base.MediaPlayerEventAdapter
@@ -22,7 +22,7 @@ import kotlinx.coroutines.launch
 data class AudioDevice(val id: String, val name: String)
 
 private interface WinKernel32 : StdCallLibrary {
-    fun SetDllDirectoryW(path: String?): Boolean
+    fun SetDllDirectoryW(path: WString?): Boolean
 
     companion object {
         val INSTANCE = try {
@@ -43,12 +43,11 @@ object VlcPlayer {
     var activeVideoBackend: VideoBackend = VideoBackend.AUTOMATIC
         private set
     private var factory: MediaPlayerFactory? = null
-    private var _mediaPlayerComponent: EmbeddedMediaPlayerComponent? = null
-    val mediaPlayerComponent: EmbeddedMediaPlayerComponent?
-        get() = _mediaPlayerComponent
-
-    val mediaPlayer: EmbeddedMediaPlayer?
-        get() = _mediaPlayerComponent?.mediaPlayer()
+    var mediaPlayer: EmbeddedMediaPlayer? = null
+        private set
+    var surfaceHandle: Long = 0L
+        private set
+    private var pendingPath: String? = null
 
     private var initialized = false
 
@@ -60,15 +59,15 @@ object VlcPlayer {
         
         val isWindows = System.getProperty("os.name").lowercase().contains("win")
         if (isWindows && File(vlcPath).exists()) {
-            WinKernel32.INSTANCE?.SetDllDirectoryW(vlcPath)
+            WinKernel32.INSTANCE?.SetDllDirectoryW(WString(vlcPath))
         }
 
         if (File(vlcPath).exists()) {
             NativeLibrary.addSearchPath("libvlc", vlcPath)
+            NativeLibrary.addSearchPath("libvlccore", vlcPath)
             System.setProperty("jna.library.path", vlcPath)
         }
 
-        val pluginsPath = File(vlcPath, "plugins").absolutePath
         val vlcArgs = mutableListOf(
             "--no-video-title-show",
             "--no-audio-time-stretch",
@@ -77,9 +76,6 @@ object VlcPlayer {
             "--live-caching=1000",
             "--disc-caching=1000"
         )
-        if (File(pluginsPath).exists()) {
-            vlcArgs.add("--plugin-path=$pluginsPath")
-        }
 
         try {
             val fact = MediaPlayerFactory(vlcArgs)
@@ -92,41 +88,42 @@ object VlcPlayer {
                 PlayerStore.save()
                 LibraryStore.message = "The selected video backend is unavailable; using Automatic."
             }
-            _mediaPlayerComponent = EmbeddedMediaPlayerComponent(fact, null, null, null, null)
+            mediaPlayer = fact.mediaPlayers().newEmbeddedMediaPlayer()
+            // Compose/Tao owns keyboard and mouse input, including above the native view.
+            mediaPlayer?.input()?.enableKeyInputHandling(false)
+            mediaPlayer?.input()?.enableMouseInputHandling(false)
             
             val mp = mediaPlayer ?: throw IllegalStateException("Failed to retrieve vlcj media player")
             
             // Attach event listeners to sync state with PlayerStore
             mp.events().addMediaPlayerEventListener(object : MediaPlayerEventAdapter() {
                 override fun playing(mediaPlayer: MediaPlayer) {
-                    PlayerStore.isPlaying = true
+                    onUi { PlayerStore.isPlaying = true }
                 }
 
                 override fun paused(mediaPlayer: MediaPlayer) {
-                    PlayerStore.isPlaying = false
+                    onUi { PlayerStore.isPlaying = false }
                 }
 
                 override fun stopped(mediaPlayer: MediaPlayer) {
-                    PlayerStore.isPlaying = false
-                    PlayerStore.currentTime = 0L
-                    PlayerStore.duration = 0L
+                    onUi { PlayerStore.isPlaying = false }
+                    onUi { PlayerStore.currentTime = 0L; PlayerStore.duration = 0L }
                 }
 
                 override fun finished(mediaPlayer: MediaPlayer) {
-                    PlayerStore.isPlaying = false
-                    PlayerStore.currentTime = 0L
-                    PlayerStore.duration = 0L
+                    onUi { PlayerStore.isPlaying = false }
+                    onUi { PlayerStore.currentTime = 0L; PlayerStore.duration = 0L }
                     CoroutineScope(Dispatchers.Main).launch {
                         DesktopPlayback.advance(automatic = true)
                     }
                 }
 
                 override fun timeChanged(mediaPlayer: MediaPlayer, newTime: Long) {
-                    PlayerStore.currentTime = newTime
+                    onUi { PlayerStore.currentTime = newTime }
                 }
 
                 override fun lengthChanged(mediaPlayer: MediaPlayer, newLength: Long) {
-                    PlayerStore.duration = newLength
+                    onUi { PlayerStore.duration = newLength }
                 }
             })
             
@@ -141,7 +138,7 @@ object VlcPlayer {
 
     fun runtimeDirectory(): File {
         val appResourcesDir = System.getProperty("compose.application.resources.dir")
-        return if (appResourcesDir != null && File(appResourcesDir, "vlc").isDirectory)
+        return if (!appResourcesDir.isNullOrBlank())
             File(appResourcesDir, "vlc") else File("resources/common/vlc").absoluteFile
     }
 
@@ -151,33 +148,40 @@ object VlcPlayer {
         it == VideoBackend.AUTOMATIC || (verifiedCoreVersion() && it.isAvailable(runtimeDirectory()))
     }
 
+    private val uiScope = CoroutineScope(kotlinx.coroutines.SupervisorJob() + Dispatchers.Main)
+    private fun onUi(action: () -> Unit) { uiScope.launch { action() } }
+
     fun load(filePath: String) {
         if (!initialized) init()
         PlayerStore.activeId = filePath
+        pendingPath = filePath
+        if (surfaceHandle != 0L) playPending()
+    }
+
+    /** Called only after Nucleus has parented and sized the native video view. */
+    fun attachSurface(handle: Long) {
+        if (surfaceHandle == handle) return
+        check(surfaceHandle == 0L) { "A VLC surface is already attached" }
+        surfaceHandle = handle
+        mediaPlayer?.videoSurface()?.set(factory!!.videoSurfaces().newVideoSurface(handle))
+        playPending()
+    }
+
+    private fun playPending() {
+        val path = pendingPath ?: return
         val mp = mediaPlayer ?: return
-        
-        val videoSurface = mediaPlayerComponent?.videoSurfaceComponent()
-        if (videoSurface?.isDisplayable == true) {
-            playOnSurface(mp, filePath)
-            mp.audio().setVolume(PlayerStore.volume)
-            if (PlayerStore.audioDeviceId.isNotEmpty()) {
-                setAudioDevice(PlayerStore.audioDeviceId)
-            }
-        } else {
-            val listener = object : java.awt.event.HierarchyListener {
-                override fun hierarchyChanged(e: java.awt.event.HierarchyEvent) {
-                    if (mediaPlayerComponent?.videoSurfaceComponent()?.isDisplayable == true) {
-                        playOnSurface(mp, filePath)
-                        mp.audio().setVolume(PlayerStore.volume)
-                        if (PlayerStore.audioDeviceId.isNotEmpty()) {
-                            setAudioDevice(PlayerStore.audioDeviceId)
-                        }
-                        mediaPlayerComponent?.videoSurfaceComponent()?.removeHierarchyListener(this)
-                    }
-                }
-            }
-            videoSurface?.addHierarchyListener(listener)
-        }
+        pendingPath = null
+        playOnSurface(mp, path)
+        mp.audio().setVolume(PlayerStore.volume)
+        if (PlayerStore.audioDeviceId.isNotEmpty()) setAudioDevice(PlayerStore.audioDeviceId)
+    }
+
+    fun detachSurface(handle: Long) {
+        if (surfaceHandle != handle) return
+        // Stop before Nucleus destroys the child HWND; VLC must never use a freed handle.
+        mediaPlayer?.controls()?.stop()
+        mediaPlayer?.videoSurface()?.set(null)
+        surfaceHandle = 0L
     }
 
     private fun playOnSurface(mp: EmbeddedMediaPlayer, path: String) {
@@ -223,6 +227,7 @@ object VlcPlayer {
 
     fun stop() {
         if (initialized) {
+            pendingPath = null
             mediaPlayer?.controls()?.stop()
             PlayerStore.activeId = ""
             PlayerStore.isPlaying = false
@@ -310,8 +315,11 @@ object VlcPlayer {
 
     fun release() {
         if (initialized) {
-            _mediaPlayerComponent?.release()
-            _mediaPlayerComponent = null
+            pendingPath = null
+            mediaPlayer?.controls()?.stop()
+            mediaPlayer?.release()
+            mediaPlayer = null
+            surfaceHandle = 0L
             factory?.release()
             factory = null
             initialized = false

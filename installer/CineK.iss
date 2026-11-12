@@ -1,6 +1,9 @@
 ; Build with scripts/build-setup.ps1. Keep AppId stable across releases.
 #ifndef AppVersion
-  #define AppVersion "1.0.3"
+  #define AppVersion "1.0.4"
+#endif
+#ifndef OutputSuffix
+  #define OutputSuffix ""
 #endif
 #ifndef AppSource
   #define AppSource "..\build\compose\binaries\main\app\CineK"
@@ -18,7 +21,7 @@ DefaultGroupName=CineK
 DisableProgramGroupPage=yes
 AllowNoIcons=yes
 OutputDir=..\out\setup
-OutputBaseFilename=CineK-{#AppVersion}-Setup
+OutputBaseFilename=CineK-{#AppVersion}{#OutputSuffix}-Setup
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern

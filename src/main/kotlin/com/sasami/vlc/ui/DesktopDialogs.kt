@@ -10,7 +10,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.DialogWindow
+import dev.nucleusframework.application.DecoratedDialog
 import androidx.compose.ui.window.rememberDialogState
 import com.sasami.vlc.player.*
 import com.sasami.vlc.store.*
@@ -20,8 +20,17 @@ import kotlinx.coroutines.delay
 @Composable
 fun DesktopDialogs() {
     val dialog = LibraryStore.dialog ?: return
-    DialogWindow(state = rememberDialogState(width = 640.dp, height = if (dialog in listOf("stream", "newPlaylist", "clearHistory") || dialog.startsWith("deletePlaylist:")) 340.dp else 680.dp), onCloseRequest = { LibraryStore.dialog = null }, icon = androidx.compose.ui.res.painterResource("icon.png"), title = "CineK · ${dialog.substringBefore(':')}",
-        resizable = false, undecorated = true, transparent = true) {
+    DecoratedDialog(state = rememberDialogState(width = 640.dp, height = if (dialog in listOf("stream", "newPlaylist", "clearHistory") || dialog.startsWith("deletePlaylist:")) 340.dp else 680.dp), onCloseRequest = { LibraryStore.dialog = null }, icon = androidx.compose.ui.res.painterResource("icon.png"), title = "CineK · ${dialog.substringBefore(':')}",
+        resizable = false) {
+        val owner = nucleusWindow
+        DisposableEffect(owner) {
+            val previousOwner = com.sasami.vlc.utils.DesktopFiles.owner
+            com.sasami.vlc.utils.DesktopFiles.owner = owner
+            onDispose {
+                if (com.sasami.vlc.utils.DesktopFiles.owner === owner)
+                    com.sasami.vlc.utils.DesktopFiles.owner = previousOwner
+            }
+        }
         MaterialTheme(colors = Theme.colors, typography = Theme.typography, shapes = Theme.shapes) {
             Surface(modifier = Modifier.fillMaxSize(), color = Theme.SurfaceBar, contentColor = Theme.TextPrimary,
                 shape = Theme.DialogShape, border = BorderStroke(1.dp, Theme.GlassBorder)) {
