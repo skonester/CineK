@@ -4,4 +4,4 @@ CineK Android incorporates and adapts source from [Aperture by XDanfr](https://g
 
 The imported Android implementation includes the library scanner, database, metadata integration, search, TV navigation and UI, settings, and Media3 player. The code retains its `me.xdan.aperture` internal package and many internal class names to make its origin and future upstream comparisons clear.
 
-This adaptation adds CineK branding and the desktop palette, uses CineK's launcher and TV banner artwork, and removes Aperture's sponsor prompts and updater, which pointed at Aperture's releases. The APK keeps CineK's existing prototype application ID; installing over an earlier APK also requires the same signing certificate.
+This adaptation adds CineK branding and its gold-on-charcoal palette, uses CineK's launcher and TV banner artwork, and removes Aperture's sponsor prompts and updater, which pointed at Aperture's releases. The APK keeps CineK's existing prototype application ID; installing over an earlier APK also requires the same signing certificate.

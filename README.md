@@ -1,148 +1,102 @@
 # CineK
 
-<img src="icon.png" alt="CineK" width="128">
+<p align="center">
+  <img src="icon.png" alt="CineK" width="128">
+</p>
 
-CineK is a media player for your own videos, music and live TV. It comes as two apps with the same name, logo and gold-on-charcoal look:
+<p align="center"><strong>Movies, shows, streams, and live TV on Android phones and Android TV.</strong></p>
 
-- **CineK for Windows** is a desktop player built with Nucleus, Compose Desktop and VLC. It plays almost any file or stream and keeps a library of your videos and music.
-- **CineK for Android** is a single APK for **phones and Android TV**. It builds a movie-and-show library from the videos on the device and plays them with Media3. It also opens individual files and streams, and plays live TV.
+<p align="center">
+  <a href="https://github.com/skonester/CineK/releases"><img src="https://img.shields.io/badge/Download-Android%20APK-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Download CineK Android APK"></a>
+</p>
 
-Each push to `main` publishes both as a GitHub pre-release; see [Automated builds](#automated-builds).
+<p align="center">
+  <a href="https://github.com/skonester/CineK/actions/workflows/build-and-release.yml"><img src="https://github.com/skonester/CineK/actions/workflows/build-and-release.yml/badge.svg" alt="Android build and release"></a>
+  <a href="LICENSE.md"><img src="https://img.shields.io/badge/license-GPL--3.0-blue.svg" alt="GPL-3.0 license"></a>
+  <a href="https://github.com/skonester/CineK/releases"><img src="https://img.shields.io/github/v/release/skonester/CineK?include_prereleases&label=latest%20build" alt="Latest Android build"></a>
+</p>
 
-## What the Windows app does
-
-- **Plays files and streams.** Open files or whole folders, drop them on the window, or use Windows **Open with**. Setup can make CineK the default player for MP4, MKV, AVI, MP3, FLAC and 18 other formats. **Open stream** plays a URL. The bundled VLC handles almost any format, so nothing else needs installing.
-- **Keeps a library.** **Library**, **Videos**, **Music** and **Folders** pages show everything you've added, with search, sorting and a grid or list view. Home shows a featured item and a **Continue Watching** shelf. CineK remembers where you stopped and resumes there.
-- **Organizes.** **Favorites**, **Recently played**, and **Playlists** that import and export M3U files, plus an **Up next** queue you can reorder.
-- **Live Channels.** Watch free Pluto TV, Plex, Samsung TV Plus and Roku channels, or your own M3U playlists, by category with search; see [Live Channels](#live-channels).
-- **Playback controls.**
-  - **Audio and subtitles:** audio and subtitle track selection, loading subtitle files, audio and subtitle delay, and choice of audio output device.
-  - **Video:** playback speed, aspect ratio, chapters, frame-by-frame stepping and snapshots.
-  - **Playback:** a sleep timer, shuffle and repeat.
-- **Fullscreen.** The controls hide when the mouse is idle and come back when you move it. Keyboard shortcuts cover play and pause, seeking, volume, fullscreen, next and previous, and more; they're listed in Settings.
-- **Starts quickly.** The CineK logo and loading indicator appear while the library and VLC initialize.
+CineK is a media player for **Android phones and Android TV**. One APK supports touch controls and TV remotes, with a library for your local movies and shows, online discovery, and live channels. Requires **Android 8.1 or newer (API 27+)**.
 
 ## What the Android app does
 
-The same APK installs on Android phones and on Android TV (Android 8.1, API 27, and newer). It appears in both the phone app drawer and the Android TV home screen.
+### Your movie and TV library
 
-- **Builds a video library.** On first launch CineK asks to see the device's videos and music, and links to Android settings if access was refused or limited. It then scans Android's media library, plus any folders you add in Settings, such as a USB drive on a TV.
-  - Videos are sorted into **Movies** and **Shows**, with episodes grouped by season.
-  - CineK uses Flixvision's bundled TMDB application key for posters, backdrops, descriptions and Discover. Select a Discover thumbnail to find sources; shows offer season/episode choices.
-  - **Home** shows a spotlight, **Continue Watching** and suggestions. **My List** holds favorites, and **Search** finds titles.
-- **Plays them.** The player resumes where you left off. It also has:
-  - **Tracks:** audio and subtitle selection, subtitle timing and appearance, and online subtitle search when OpenSubtitles is configured.
-  - **Picture:** fit, stretch or zoom.
-  - **Formats:** FFmpeg decoders for audio formats the device can't play itself.
-- **Opens anything else.** The **Open** page plays a file chosen from the device, a USB drive or cloud storage, or a stream URL such as an HLS `.m3u8` link. Other apps can also send video, audio and stream links to CineK with **Open with**.
-- **Live TV.** The same free Pluto TV, Plex, Samsung TV Plus and Roku playlists as the desktop app, or your own M3U playlist, browsed by category with search. Channel up and down (or the player's previous and next buttons) changes channel.
-- **Extras.** Color themes, an ambient screensaver after five minutes idle, and hiding or marking items as watched from a long-press menu.
+- Scan videos on your device and add media folders.
+- Browse movies and shows with posters, backdrops, and title details.
+- Choose seasons and episodes, or display episodes in season rows.
+- Search your library, save favorites in **My List**, mark titles watched or unwatched, and hide titles.
+- Resume from **Continue Watching** or start a title from the beginning.
+- Enable automatic playback of the next local episode and choose when its **Up next** card appears.
 
-**Phones and TVs.** On a TV, everything works with the remote's D-pad, as in [Aperture](https://github.com/XDanfr/Aperture), which the app is built from. On a phone, the same screens respond to touch:
-- Tap any button, card or menu item; long-press a poster for its menu.
-- Drag sliders.
-- In the player, tap to show or hide controls, double-tap the left or right side to skip 10 seconds, and drag the seek bar.
+### Discover movies and shows
 
-Phones stay in landscape, because the screens are laid out for a TV.
+- Browse TMDB titles by **Popular**, **Top rated**, or **Newest**.
+- Filter by genre and release decade.
+- View descriptions, ratings, cast, and related titles.
+- Select a movie or a show's season and episode to look up available streaming sources.
+- Refresh or switch sources, resume remote playback, and return to recent Discover titles.
 
-**Current limits.**
-- Music access is requested, but songs don't appear in the library yet. Play them with **Open a file**.
-- Playback from Open and Live TV stops when you leave the app.
-- The home spotlight changes by itself but can't be swiped.
-- Release APKs are debug-signed test builds; see [android/README.md](android/README.md).
+Source availability depends on the provider. A title appearing in Discover does not guarantee a playable stream.
 
-## Interface direction
+### Open files and streams
 
-The desktop interface takes design cues from [Aperture](https://github.com/XDanfr/Aperture), an Android TV player distributed under GPLv3, the same license used by CineK. The desktop polish pass adapts its layered surface palette, rounded media and action shapes, prominent featured item, Continue Watching shelf, and visible focus treatment for cards and navigation. These are original Compose Desktop implementations. The separate Android app now includes adapted Aperture source; see [Android attribution](android/NOTICE.md).
+- Open a local video or audio file without adding it to the library.
+- Play network URLs, including HLS streams.
+- Use **Open with CineK** from other Android apps.
+- Check media access, grant permissions, and rescan from the **Open** page.
 
-Continue Watching uses CineK's existing resume rule and only shows library items with a useful saved position. The featured item and shelf scroll with the media collection. At the minimum window height, the shelf takes priority over the featured item so the resume cards remain visible.
+### Live TV
 
-The desktop surfaces follow the dark design language of [FletBox](https://github.com/kuko53348/flet-box): a zinc neutral scale, 1 px hairline borders instead of shadows, pill-shaped buttons, chips and fields, 16 dp cards and 200 ms ease transitions, with CineK's gold accent kept. Reusable desktop colors, shapes and motion live in `src/main/kotlin/com/sasami/vlc/theme/Theme.kt`. The Android theme uses the same CineK gold. Aperture's `androidx.tv.material3` controls and Media3 engine remain Android-specific and are not desktop dependencies.
+- Add M3U playlists from a URL or local file.
+- Browse featured free playlist sources and channel categories.
+- Favorite channels and categories, refresh playlists, and keep saved channel lists between launches.
+- Watch with CineK's player or send live channels to an installed **MX Player** or **VLC** Android app.
+- Configure the channel banner, on-screen clock, and confirmation before leaving live TV.
 
-## Live Channels
+### Playback and subtitles
 
-Open **Live Channels** in the sidebar. Add an M3U playlist URL, import a local `.m3u`/`.m3u8` file, or choose one of the free Pluto TV, Plex, Samsung TV Plus, or Roku playlists by service and region. The free source links use the generated playlists from [app-m3u-generator](https://github.com/BuddyChewChew/app-m3u-generator); they require an internet connection and can be refreshed from the playlist panel. Choose a category, search for a channel, and click a channel to watch it in CineK's player. Sources and downloaded channel lists are saved in `%APPDATA%\CineK\live-channels.json` so channels remain browsable between launches. Stream availability and geographic access depend on each service.
+- Play, pause, seek, and resume with touch or remote controls.
+- Select audio and subtitle tracks.
+- Load subtitle files and choose their text encoding.
+- Adjust subtitle timing, text size, color, and background.
+- Search and download subtitles through the optional **OpenSubtitles** integration, which requires a configured build and an account.
+- Choose **Fit**, **Stretch**, or **Zoom** for the picture.
+- Choose classic or streamlined controls for library playback.
 
-## Video backend
+### Make it yours
 
-Use the slider icon in the title bar to select **Automatic**, **Direct3D 11**, **Direct3D 9**, or **OpenGL**. Restart CineK after changing the setting so VLC can initialize the selected video output. OpenGL is the default: with Direct3D 11 (which Automatic selects), the window can turn white and stop responding when it covers the whole screen. The menu only shows outputs present in the bundled VLC runtime. Vulkan is unavailable in the bundled VLC 3.0.23 runtime.
+- Choose a theme, artwork quality, and TV show layout.
+- Customize Home's Spotlight and Continue Watching rows.
+- Use cinematic backdrops or a poster wall in ambient mode, with an optional clock.
+- Manage hidden titles, refresh artwork, and clear the artwork cache.
 
-## Build and run
+## Phone and TV controls
 
-Requires JDK 21 with `JAVA_HOME` set. The Gradle wrapper is included. Windows VLC binaries and plugins are in `resources/common/vlc/`; keep this complete runtime together.
+| Android phone | Android TV |
+| --- | --- |
+| Tap and long-press to browse and open actions. | Navigate with the remote's D-pad and select button. |
+| Tap the video to show or hide controls. Double-tap the left or right side to skip 10 seconds during library playback. | Use the playback controls and quick menus for seeking, tracks, and subtitles. |
+| Drag the seek bar. In **Open** and **Live TV**, swipe vertically on the left for brightness and on the right for volume. | Browse channel categories and change live channels with the remote. |
 
-```powershell
-.\gradlew.bat run
-.\gradlew.bat check createDistributable
-```
+Phones use landscape orientation. Both device types use the same APK.
 
-Launch `build/compose/binaries/main/app/CineK/CineK.exe`. Nucleus owns the Tao window and UI dispatcher; VLC renders into a native child window. File dialogs use FileKit. Keep the complete distribution together, including `app` and `runtime`; Java and VLC do not need to be installed separately on the destination computer. The loading screen is drawn by Compose and works with both runtime targets.
+## Install
 
-### GraalVM Native Image target
+1. Download the latest **Android APK** from [Releases](https://github.com/skonester/CineK/releases).
+2. Allow installation from the app you used to download or open the APK when Android prompts you.
+3. Open CineK and grant media access to scan your device, or use **Open** to choose a file or stream.
 
-The desktop build pins Nucleus `3.0.0-dev-202611061347`, Kotlin `2.4.20`, Compose `1.12.1`, and GraalVM Community `25.0.2`. Nucleus automatically downloads the GraalVM toolchain; `GRAALVM_HOME` can select an existing installation. On Windows, native compilation also requires Visual Studio 2022 17.6+ Build Tools with **Desktop development with C++** and a Windows SDK. Use an x64 Native Tools prompt if native-image cannot discover the compiler.
+Published pre-release APKs are debug-signed test builds. Updating between CI builds may require uninstalling the previous APK because its signing certificate can differ. Uninstalling clears the app's library and settings.
 
-```powershell
-.\gradlew.bat check desktopSmoke startupSmoke
-.\gradlew.bat createGraalvmNativeDistributable
-.\scripts\test-desktop-distribution.ps1 -Runtime GraalVM -ApplicationPath build/compose/binaries/main/graalvm-app/CineK/CineK.exe
-.\scripts\build-setup.ps1 -Runtime GraalVM
-```
+## Current limitations
 
-The native distribution goes to `build/compose/binaries/main/graalvm-app/CineK/`, and its installer is `out/setup/CineK-1.0.4-Native-Setup.exe`. Keep the executable, `vlc/`, `bin/`, and all generated native sidecars together. Native Image still needs VLC, Skiko and the Nucleus runtime libraries beside the executable. Nucleus bundles the MSVC runtime from the build toolchain for distribution.
+- Music can be opened and played through **Open**, but does not have a music library view.
+- Playback from **Open** and **Live TV** stops when you leave CineK.
+- Discover, online metadata, subtitle downloads, and network streams require an internet connection. Local playback remains available when metadata requests fail.
 
-The manual **Validate GraalVM desktop** GitHub Actions workflow builds and exercises the native executable, then checks the installer on a clean Windows runner. Native publishing remains separate from the existing automatic JVM installer release until these checks pass. The local migration passed JVM behavior, playback, fullscreen and startup checks. The Windows native image now also builds with MSVC 14.44 and passes packaged audio/video playback, Unicode multi-file startup, persistence, clean exit and HTTPS playlist download checks; see [gameplan.md](gameplan.md) for evidence and remaining validation.
+## Development and license
 
-VLC/JNA reachability metadata was captured from real playback with the GraalVM tracing agent. To refresh it, set `GRAALVM_HOME`, run `desktopSmoke startupSmoke -PtraceNative=true`, then `python scripts/update-native-metadata.py`. Raw traces stay in `build/native-agent/`. The native verification scripts exit on missing registrations. Native builds include Windows code-page charsets for JNA and enable HTTP/HTTPS URL handlers for live-channel downloads. Broader codec, stream playback, subtitle and device coverage still needs verification in the compiled native executable.
+For Android setup and build instructions, see the [Android development guide](android/README.md). The [architecture guide](architecture.md) describes the app's playback and storage.
 
-Verify the production live-channel downloader and parser inside the native executable, including TLS with Nucleus's packaged `java.home` setting:
-
-```powershell
-.\scripts\test-native-live-channels.ps1 -ApplicationPath build/compose/binaries/main/graalvm-app/CineK/CineK.exe
-```
-
-`-AudioOnly` on `test-desktop-distribution.ps1` checks the WAV fixture and saved playback progress. `build-setup.ps1 -DesktopOutputDir build/native-verified` uses a separate distribution directory when the normal development executable is open.
-
-Tests use `cinek.configDir` or `CINEK_CONFIG_DIR` to isolate data from `%APPDATA%\CineK`. To check a JVM package independently of its working directory, run:
-
-```powershell
-.\scripts\test-desktop-distribution.ps1 -Runtime Jvm -ApplicationPath build/compose/binaries/main/app/CineK/CineK.exe
-```
-
-## Windows setup
-
-Install Inno Setup 6, then run:
-
-```powershell
-.\scripts\build-setup.ps1
-```
-
-If the compiler is installed elsewhere, pass `-IsccPath 'C:\path\to\ISCC.exe'`. The script builds and checks the app, bundles the complete runtime, and compiles `installer/CineK.iss` into `out/setup/CineK-1.0.4-Setup.exe`.
-
-Setup supports all-users or current-user installation, a Start menu shortcut, an optional desktop shortcut, and optional audio/video associations. It registers CineK in Open with and Windows Default Apps, with the CineK icon and quoted commands that open the selected file. The final setup page can open Windows Settings to choose default media types. Existing default-app choices are preserved. Uninstall removes CineK's registrations and installed files, while retaining the user's library and preferences.
-
-Supported associations: MP4, AVI, MKV, MOV, WMV, FLV, WEBM, M4V, MPEG, MPG, 3GP, TS, M2TS, MTS, MP3, AAC, FLAC, M4A, OGG, OPUS, WAV, WMA and AIFF.
-
-The registration follows [Inno Setup's association guidance](https://jrsoftware.org/isfaq.php#assoc) and [Windows Default Programs registration](https://learn.microsoft.com/en-us/windows/win32/shell/default-programs).
-
-## Verification
-
-```powershell
-.\gradlew.bat check desktopSmoke startupSmoke
-```
-
-`check` covers queue/resume behavior, legacy configuration, playlist round trips, library persistence and association coverage. The optional smoke tasks open the actual Windows UI with isolated settings and local media fixtures. They verify native playback, video corners in the library preview, fullscreen transitions, idle controls, and opening filenames containing spaces and Unicode through the application entry point. Captures and test files go to `build/`.
-
-## Settings and source
-
-Settings, the library, and live channel sources are saved in `%APPDATA%\CineK` (`config.json`, `library.json`, and `live-channels.json`). The internal `com.sasami.vlc` package remains stable. The native loader and VLC surface ownership are in `src/main/kotlin/com/sasami/vlc/player/VlcPlayer.kt`.
-
-The gold and orange accents use RGB values sampled from the supplied CineK artwork; the neutrals are FletBox's zinc scale. `icon.png` and `src/main/resources/icon.png` supply the interface logo; `icon.ico` contains the Windows icon sizes from 16 to 256 pixels.
-
-Generated files in `.gradle/`, `.kotlin/`, `build/` and `out/` are ignored by Git. The packaged player contains its own Java and VLC runtimes.
-
-## Automated builds
-
-One workflow, `.github/workflows/build-and-release.yml`, runs on every push to `main` (or manually). It builds and checks the Windows installer with the Inno Setup script and the Android APK with its unit tests, then publishes both as a GitHub pre-release named `CineK <version> (build <run>)` with the tag `v<version>-build.<run>`: `CineK-<version>-Setup.exe` and `CineK-<version>-Android.apk`. The version comes from `build.gradle.kts`, and the run fails if Android's `versionName` in `android/app/build.gradle.kts` differs, so change both together.
-
-The Android app uses its own Media3 engine; desktop VLC binaries are not part of the APK. Android build instructions and implementation notes are in [android/README.md](android/README.md).
+CineK is licensed under the [GNU General Public License v3.0](LICENSE.md) and includes adapted [Aperture](https://github.com/XDanfr/Aperture) source. See the [Android attribution](android/NOTICE.md) and [Aperture license](android/APERTURE-LICENSE).
