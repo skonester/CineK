@@ -106,6 +106,11 @@ class DiscoverScreenTest {
         compose.runOnIdle { assertTrue(requests.isEmpty()) }
         compose.onNodeWithTag("discover-season-2").performScrollTo().performClick()
         compose.onNodeWithTag("discover-episode-2-2").performScrollTo().performClick()
+        // Compose idling does not wait for Room's background work or source lookup.
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithTag("remote-source-play-0").fetchSemanticsNodes().isNotEmpty() &&
+                sources.state.value.loading.isEmpty()
+        }
         compose.onNodeWithTag("remote-source-play-0").assertExists()
         compose.runOnIdle {
             assertEquals(3, requests.size)
