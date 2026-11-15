@@ -84,6 +84,7 @@ import me.xdan.aperture.data.discover.DiscoverPeriod
 import me.xdan.aperture.data.discover.DiscoverSort
 import me.xdan.aperture.data.discover.DiscoverTitle
 import me.xdan.aperture.data.discover.DiscoverType
+import me.xdan.aperture.data.sources.SourceSite
 import me.xdan.aperture.ui.artwork.LocalHdArtwork
 import me.xdan.aperture.ui.artwork.TmdbImageSize
 import me.xdan.aperture.ui.component.ArtworkFallback
@@ -102,7 +103,8 @@ fun DiscoverScreen(
     contentEntryFocusRequester: FocusRequester,
     onContentFocused: (FocusRequester) -> Unit,
     onOpenSaved: (String) -> Unit = {},
-    sources: RemoteSourcesViewModel = viewModel()
+    sources: RemoteSourcesViewModel = viewModel(),
+    onOpenWebPlayer: ((String, SourceSite) -> Unit)? = null
 ) {
     val ui by viewModel.ui.collectAsState()
     val sourceState by sources.state.collectAsState()
@@ -250,6 +252,9 @@ fun DiscoverScreen(
             onSelectEpisode = viewModel::selectEpisode,
             onRetrySources = sources::retry,
             onSelectSource = { option, restart -> sources.select(option, restart, onPlaySource) },
+            onOpenWebPlayer = onOpenWebPlayer?.let { open ->
+                { site -> request?.contentId?.let { id -> open(id, site) }; Unit }
+            },
             libraryMediaId = mediaId,
             library = library,
             onOpenLibrary = { id ->
@@ -369,7 +374,8 @@ internal fun DiscoverDetailsDialog(
     onOpenLibrary: (Long) -> Unit,
     onOpenRelated: (DiscoverTitle) -> Unit,
     onRetry: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onOpenWebPlayer: ((SourceSite) -> Unit)? = null
 ) {
     val title = ui.selected ?: return
     val details = ui.details
@@ -435,7 +441,7 @@ internal fun DiscoverDetailsDialog(
                             Text("Season ${episode.season}, episode ${episode.number}: ${episode.name}",
                                 style = MaterialTheme.typography.titleMedium)
                         }
-                        RemoteSourceOptions(sourceState, onRetrySources, onSelectSource)
+                        RemoteSourceOptions(sourceState, onRetrySources, onSelectSource, onOpenWebPlayer = onOpenWebPlayer)
                     }
 
                     when {

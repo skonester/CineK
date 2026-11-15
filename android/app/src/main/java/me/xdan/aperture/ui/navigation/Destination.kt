@@ -42,6 +42,10 @@ sealed interface Destination : NavKey {
     @Serializable
     data class RemotePlayer(val contentId: String, val sessionId: String? = null, val fromBeginning: Boolean = false) : Destination
 
+    /** Stable title/provider identity; page URLs are rebuilt from the saved request. */
+    @Serializable
+    data class ProviderPlayer(val contentId: String, val provider: String) : Destination
+
     @Serializable
     data class Player(
         val mediaId: Long,
@@ -70,4 +74,5 @@ sealed interface Destination : NavKey {
 
 /** Full-screen playback, which hides the drawer and holds off ambient mode. */
 val Destination.isPlayback: Boolean
-    get() = this is Destination.Player || this is Destination.ExternalPlayer || this is Destination.LivePlayer || this is Destination.RemotePlayer
+    get() = this is Destination.Player || this is Destination.ExternalPlayer || this is Destination.LivePlayer ||
+        this is Destination.RemotePlayer || this is Destination.ProviderPlayer

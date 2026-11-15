@@ -18,6 +18,8 @@ import androidx.tv.material3.Text
 import me.xdan.aperture.data.remoteplayback.RemoteMediaEntity
 import me.xdan.aperture.data.remoteplayback.RemoteSourceOption
 import me.xdan.aperture.data.sources.SourceFailureKind
+import me.xdan.aperture.data.sources.SourceSite
+import me.xdan.aperture.data.sources.browserFallback
 import me.xdan.aperture.ui.component.touch.Button
 import me.xdan.aperture.ui.component.touch.OutlinedButton
 
@@ -27,7 +29,8 @@ fun RemoteSourcesScreen(
     contentId: String, onPlay: (String, String, Boolean) -> Unit,
     drawerFocusRequester: FocusRequester?, contentEntryFocusRequester: FocusRequester,
     onContentFocused: (FocusRequester) -> Unit,
-    viewModel: RemoteSourcesViewModel = viewModel()
+    viewModel: RemoteSourcesViewModel = viewModel(),
+    onOpenWebPlayer: ((String, SourceSite) -> Unit)? = null
 ) {
     val state by viewModel.state.collectAsState()
     val history by viewModel.history.collectAsState()
@@ -35,7 +38,10 @@ fun RemoteSourcesScreen(
     DisposableEffect(viewModel) { onDispose { viewModel.cancelLookup() } }
     RemoteSourcesContent(state, history, viewModel::retry,
         { option, restart -> viewModel.select(option, restart, onPlay) }, viewModel::openSaved,
-        viewModel::removeSaved, drawerFocusRequester, contentEntryFocusRequester, onContentFocused)
+        viewModel::removeSaved, drawerFocusRequester, contentEntryFocusRequester, onContentFocused,
+        onOpenWebPlayer = onOpenWebPlayer?.let { open ->
+            { site -> state.request?.contentId?.let { id -> open(id, site) }; Unit }
+        })
 }
 
 @Composable
@@ -44,7 +50,8 @@ internal fun RemoteSourcesContent(
     onSelect: (RemoteSourceOption, Boolean) -> Unit, onOpenSaved: (String) -> Unit,
     onRemoveSaved: (String) -> Unit, drawerFocusRequester: FocusRequester? = null,
     contentEntryFocusRequester: FocusRequester = remember { FocusRequester() },
-    onContentFocused: (FocusRequester) -> Unit = {}
+    onContentFocused: (FocusRequester) -> Unit = {},
+    onOpenWebPlayer: ((SourceSite) -> Unit)? = null
 ) {
     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 28.dp).testTag("remote-source-list"),
         contentPadding = PaddingValues(vertical = 24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -55,7 +62,7 @@ internal fun RemoteSourcesContent(
         }
         item {
             RemoteSourceOptions(state, onRetry, onSelect, contentEntryFocusRequester, onContentFocused,
-                Modifier.focusProperties { drawerFocusRequester?.let { left = it } })
+                Modifier.focusProperties { drawerFocusRequester?.let { left = it } }, onOpenWebPlayer)
         }
         if (history.isNotEmpty()) item { Text("Recently watched", style = MaterialTheme.typography.titleLarge) }
         items(history.filter { it.lastUpdated > 0 }.take(20), key = { "saved-${it.contentId}" }) { media ->
@@ -75,7 +82,8 @@ internal fun RemoteSourceOptions(
     state: RemoteSourcesUiState, onRetry: () -> Unit,
     onSelect: (RemoteSourceOption, Boolean) -> Unit,
     entryFocusRequester: FocusRequester = remember { FocusRequester() },
-    onContentFocused: (FocusRequester) -> Unit = {}, modifier: Modifier = Modifier
+    onContentFocused: (FocusRequester) -> Unit = {}, modifier: Modifier = Modifier,
+    onOpenWebPlayer: ((SourceSite) -> Unit)? = null
 ) {
     val selectedSource = remember { FocusRequester() }
     LaunchedEffect(state.request?.contentId, state.options.isNotEmpty(), state.selectedIndex) {
@@ -117,12 +125,18 @@ internal fun RemoteSourceOptions(
         }
         state.failures.forEach { failure ->
             val message = when (failure.kind) {
-                SourceFailureKind.BLOCKED -> "This source is refusing requests right now."
-                SourceFailureKind.UNSUPPORTED -> "This source's current player format is not supported."
+                SourceFailureKind.BLOCKED -> failure.message.ifBlank { "This source is blocking requests." }
+                SourceFailureKind.UNSUPPORTED -> "CineK could not resolve a direct stream from this source's web player."
                 SourceFailureKind.TIMEOUT -> "This source took too long to respond."
                 else -> failure.message
             }
             Text("${failure.site.displayName}: $message", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (onOpenWebPlayer != null && browserFallback(failure, state.request?.query) != null) {
+                OutlinedButton(onClick = { onOpenWebPlayer(failure.site) },
+                    modifier = Modifier.testTag("provider-web-${failure.site.name}")) {
+                    Text(if (failure.site == SourceSite.RIDOMOVIES) "Open Ridomovies website" else "Play with Vidsrc web player")
+                }
+            }
         }
     }
 }

@@ -36,6 +36,8 @@ CineK is a media player for **Android phones and Android TV**. One APK supports 
 - View descriptions, ratings, cast, and related titles.
 - Select a movie or a show's season and episode to look up available streaming sources.
 - Refresh or switch sources, resume remote playback, and return to recent Discover titles.
+- Open Vidsrc's browser-based player inside CineK when its current embed cannot be resolved to a native stream.
+- Open the Ridomovies website inside CineK when it requires browser verification.
 
 Source availability depends on the provider. A title appearing in Discover does not guarantee a playable stream.
 
@@ -94,6 +96,7 @@ Published pre-release APKs are debug-signed test builds. Updating between CI bui
 - Music can be opened and played through **Open**, but does not have a music library view.
 - Playback from **Open** and **Live TV** stops when you leave CineK.
 - Discover, online metadata, subtitle downloads, and network streams require an internet connection. Local playback remains available when metadata requests fail.
+- Provider web playback requires Android System WebView and uses the site's own controls. Native-player resume tracking and subtitle settings do not apply to web playback; provider verification or access restrictions can still prevent playback.
 
 ## Development and license
 

@@ -59,6 +59,21 @@ class RemoteSourcesScreenTest {
         compose.onNodeWithText("Refresh sources").assertExists()
     }
 
+    @Test fun browserOnlyProvidersHaveSeparateActionsAndKeepTheirFailureDetails() {
+        val selected = mutableListOf<SourceSite>()
+        compose.setContent {
+            RemoteSourcesContent(RemoteSourcesUiState(request = media().request(), media = media(), failures = listOf(
+                SourceFailure(SourceSite.VIDSRC, SourceFailureKind.UNSUPPORTED, "Changed web player"),
+                SourceFailure(SourceSite.RIDOMOVIES, SourceFailureKind.BLOCKED, "Source refused the request (HTTP 403).")
+            )), emptyList(), {}, { _, _ -> fail("Web pages must not be passed to the native player") }, {}, {},
+                onOpenWebPlayer = { selected += it })
+        }
+        compose.onNodeWithTag("provider-web-VIDSRC").performScrollTo().performTouchInput { click() }
+        compose.onNodeWithTag("provider-web-RIDOMOVIES").performScrollTo().performTouchInput { click() }
+        compose.onNodeWithText("Ridomovies: Source refused the request (HTTP 403).").assertExists()
+        compose.runOnIdle { assertEquals(listOf(SourceSite.VIDSRC, SourceSite.RIDOMOVIES), selected) }
+    }
+
     @Test fun remoteContinueWatchingCardOpensStableIdentity() {
         var opened: String? = null
         compose.setContent { RemoteContinueRow(listOf(media()), { opened = it }) }

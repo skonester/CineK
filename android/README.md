@@ -12,6 +12,16 @@ On launch CineK asks for access to the device's videos and music, and scans in t
 - **Orientation:** phones are kept in landscape (`sensorLandscape`). TVs ignore that setting.
 - **Library-independent playback:** **Open** and **Live TV** play through `MediaQueuePlayer`. It's a small Media3 player with standard touch and remote controls, and treats live channel addresses as HLS (`data/live`, `ui/screen/live`). Live TV playlists are saved as `live-channels.json` in the app's private files.
 
+## Discover web players
+
+Direct media streams use CineK's Media3 player. If Vidsrc returns an unsupported web player, **Play with Vidsrc web player** opens the provider's movie or selected episode inside CineK using Android System WebView. The app supports the page's JavaScript, embedded media, and fullscreen video, and stops web playback when the app leaves the foreground.
+
+Ridomovies currently returns HTTP 403 with a browser-verification page for both its homepage and search API. **Open Ridomovies website** lets the viewer attempt normal verification and find the title on the provider's site. This does not bypass the provider's restrictions or guarantee access. Its HTTP error remains visible in the source list.
+
+Web playback requires an enabled Android System WebView. It uses the provider's controls; native-player progress tracking and subtitle preferences do not apply. Popups and external app launches are blocked. Source pages have no JavaScript bridge into CineK or access to device files.
+
+The web-player route stores only the title's stable content ID and provider name. It reconstructs the provider page from the saved title/episode metadata; it does not put media tokens or web page URLs in the navigation state.
+
 ## Build
 
 **Discover** integrates source lookup into TMDB thumbnails. Selecting a movie automatically finds sources; shows offer season/episode choices. Ridomovies, StreamingUnity and Vidsrc feed the picker, with FileMoon/Dood host resolution. Play, Resume, Start over, source refresh/switching, Home Continue Watching and Discover recent history share saved remote progress. See the [architecture guide](../architecture.md) for source lookup, playback, and testing boundaries.

@@ -32,6 +32,7 @@ import me.xdan.aperture.ui.component.rememberLibraryAccess
 import me.xdan.aperture.ui.screen.open.OpenMediaScreen
 import me.xdan.aperture.ui.screen.sources.RemoteSourcesScreen
 import me.xdan.aperture.ui.screen.sources.RemotePlayerScreen
+import me.xdan.aperture.ui.screen.sources.ProviderPlayerScreen
 import me.xdan.aperture.ui.screen.live.LiveChannelPlayer
 import me.xdan.aperture.ui.screen.live.LiveTvScreen
 import me.xdan.aperture.ui.screen.discover.DiscoverScreen
@@ -247,7 +248,8 @@ fun NavGraph(
         }
         // Remote source lists restore their own focus, including the Discover dialog.
         pendingPlayerFocusRestore = originFocusKey.takeUnless {
-            currentDestination is Destination.RemotePlayer && (it == "sources" || it == "discover")
+            (currentDestination is Destination.RemotePlayer || currentDestination is Destination.ProviderPlayer) &&
+                (it == "sources" || it == "discover")
         }
         if (backstack.size > 1) backstack.removeAt(backstack.lastIndex)
     }
@@ -527,7 +529,7 @@ fun NavGraph(
                             onNavigate(destination)
                         },
                         onRemoteNavigate = { destination ->
-                            if (destination is Destination.RemotePlayer) playerOriginFocusKey = currentFocusKey
+                            if (destination is Destination.RemotePlayer || destination is Destination.ProviderPlayer) playerOriginFocusKey = currentFocusKey
                             onNavigate(destination)
                         },
                         isScanning = isScanning,
@@ -575,7 +577,7 @@ fun NavGraph(
                         onNavigate(destination)
                     },
                     onRemoteNavigate = { destination ->
-                        if (destination is Destination.RemotePlayer) playerOriginFocusKey = currentFocusKey
+                        if (destination is Destination.RemotePlayer || destination is Destination.ProviderPlayer) playerOriginFocusKey = currentFocusKey
                         onNavigate(destination)
                     },
                     isScanning = isScanning,
@@ -719,6 +721,7 @@ private fun Destination.focusKey(): String? = when (this) {
     is Destination.ExternalPlayer -> null
     is Destination.LivePlayer -> null
     is Destination.RemotePlayer -> null
+    is Destination.ProviderPlayer -> null
 }
 
 @Composable
@@ -869,6 +872,7 @@ private fun NavContent(
                     onOpenLibraryItem = mediaClick,
                     onPlaySource = { id, session, restart -> onRemoteNavigate(Destination.RemotePlayer(id, session, restart)) },
                     onOpenSaved = { id -> onRemoteNavigate(Destination.Sources(id)) },
+                    onOpenWebPlayer = { id, site -> onRemoteNavigate(Destination.ProviderPlayer(id, site.name)) },
                     drawerFocusRequester = drawerFocusRequester,
                     contentEntryFocusRequester = contentEntryFocusRequester,
                     onContentFocused = contentFocused
@@ -876,6 +880,7 @@ private fun NavContent(
                 is Destination.Sources -> RemoteSourcesScreen(
                     contentId = destination.contentId,
                     onPlay = { id, session, restart -> onRemoteNavigate(Destination.RemotePlayer(id, session, restart)) },
+                    onOpenWebPlayer = { id, site -> onRemoteNavigate(Destination.ProviderPlayer(id, site.name)) },
                     drawerFocusRequester = drawerFocusRequester,
                     contentEntryFocusRequester = contentEntryFocusRequester,
                     onContentFocused = contentFocused
@@ -883,6 +888,9 @@ private fun NavContent(
                 is Destination.RemotePlayer -> RemotePlayerScreen(
                     contentId = destination.contentId, sessionId = destination.sessionId,
                     fromBeginning = destination.fromBeginning, onBack = onPlayerBack
+                )
+                is Destination.ProviderPlayer -> ProviderPlayerScreen(
+                    contentId = destination.contentId, provider = destination.provider, onBack = onPlayerBack
                 )
             }
         }
